@@ -3,6 +3,7 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import src.solutions as solutions
+from matplotlib.animation import PillowWriter
 from matplotlib.animation import FuncAnimation
 
 def visualize_object_grid(obj_grid, stage):
@@ -50,7 +51,7 @@ def plot_simulation_without_animation(grid, N, object_grid):
     ax.set_title("2D Diffusion")
     plt.show()
 
-def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val, interval=50):
+def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val, itertjes=1500, interval=0.7):
     """
     Generates and saves an animation of a 2D Diffusion-Limited Aggregation (DLA) process.
 
@@ -68,7 +69,9 @@ def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val,
         interval (int, optional): Frame interval in milliseconds (default: 50).
     """
 
-    cmap = mcolors.ListedColormap(["lightgrey", "black"])
+    # cmap = mcolors.ListedColormap(["lightgrey", "black"])
+    cmap = mcolors.ListedColormap(["darkblue", "salmon"])
+
     fig, axs = plt.subplots(figsize=(5, 5))
     img = axs.imshow(object_gridd, cmap=cmap, origin="lower", extent=[0, 1, 0, 1])
     # plt.colorbar(img, ax=axs, label="Concentration", shrink=0.8)
@@ -77,8 +80,8 @@ def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val,
     def animate(frame):
         nonlocal  gridd, stencill, object_gridd, seedje
         seedje += frame
-        gridd, object_gridd, stencill = solutions.perform_update_ADL(gridd, object_gridd, stencill, grid_indices, eta, seedje, sr_val)
-        img.set_array(object_gridd)
+        gridd, object_gridd, stencill, _ = solutions.perform_update_ADL(gridd, object_gridd, stencill, grid_indices, eta, seedje, sr_val)
+        img.set_data(object_gridd)
         axs.set_title(f"DLA (η: {eta}) (Step: {frame:.3g})")
 
         if frame%100 == 0:
@@ -86,9 +89,10 @@ def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val,
         return img,
     # Create animation
     animation = FuncAnimation(
-        fig, animate, frames=2000, interval=interval, blit=True
+        fig, animate, frames=itertjes, interval=interval, blit=False
     )
-    animation.save(f"plots/2D_diffusion_{eta}.gif", fps=50, writer="ffmpeg")
+    # writer=PillowWriter(fps=200, metadata={"duration": 0.05})
+    animation.save(f"plots/2D_diffusion_p_{eta}.gif", writer="ffmeg", fps=50)
 
     plt.close(fig)
     return animation

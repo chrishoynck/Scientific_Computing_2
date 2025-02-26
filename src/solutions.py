@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.ndimage import binary_dilation
+from numba import njit, prange
 
 def place_objects(N, size_object=1):
     """
@@ -25,7 +26,6 @@ def place_objects(N, size_object=1):
     # set value of indexes that object occupies 1
     object_grid[tuple(zip(*points))] = 1
     
-
     return object_grid
 
 def generate_stencil(object_grid):
@@ -69,6 +69,8 @@ def initialize_grid(N, object_grid):
         N (int): Grid size.
         object_grid (np.array): 2D matrix with 1s one places where the object is placed (0s everywhere else)
     """
+
+    # assert parameters are suitable for this implementation 
     assert N > 1, "Grid size must be bigger than 1x1"
     assert object_grid.shape == (N, N), f"object_grid must have the same dimensions as {N, N}"
 
@@ -77,10 +79,11 @@ def initialize_grid(N, object_grid):
     grid[0, :] = 1  # bottom boundary
     grid[N - 1, :] = 0  # top boundary
 
-    grid[object_grid==1] = 1
+    # objects are sinks
+    grid[object_grid==1] = 0
     return grid
 
-def empty_object_places(grid, stenciltje, object_grid, nu):
+def empty_object_places(grid, stenciltje, object_grid, eta):
     """
     Computes the growth probabilities for candidate sites in a diffusion-limited aggregation model.
 
@@ -98,20 +101,25 @@ def empty_object_places(grid, stenciltje, object_grid, nu):
     """
     assert object_grid.shape == grid.shape, "object_grid must have the same dimensions as diffusion grid"
     
+    # consider only potential new cells
     emptied_grid = np.copy(grid)
     emptied_grid[stenciltje==0] = 0 
 
+    # numerical errors can cause a value to slightly drop below zero -> set to zero
     if np.any(emptied_grid < 0):
         emptied_grid[emptied_grid < 0] = 0 
-        
-    emptied_grid = np.power(emptied_grid, nu)
+    
+    # apply eta parameter: how strongly the concentration is involved in probability
+    emptied_grid = np.power(emptied_grid, eta)
     total_sum = emptied_grid.sum()
-    assert total_sum > 0, "Initialize object, The Advection Diffusion does not work on an empty grid"
-    emptied_grid/=total_sum
 
+    # if sum is 0, no probabilities are assigned, so no object or diffusion source is present
+    assert total_sum > 0, "Initialize object or source, The Advection Diffusion does not work on an empty grid"
+    emptied_grid/=total_sum
     
     return emptied_grid.flatten()
 
+@njit(parallel=True)
 def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
     """
     Solves using the Successive Over Relaxtion (SOR) iteration method.
@@ -134,9 +142,6 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
         f"bord is {N}x{N}, but needs to be at least 2*2 for this diffusion implementation"
     )
 
-    # grid initialisation
-    # c = initialize_grid(N)
-
     iter = 0
     delta = float("inf")
 
@@ -144,10 +149,15 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
     while delta > tol and iter < max_iters:
         delta = 0
 
-        
         # loop over all cells in the grid (except for y = 0, y=N)
-        for i in range(1, N-1):
-            for j in range(1, N-1):
+        for i in prange(1, N-1):
+            if i%2 == 0: 
+                start = 1
+                end = N-2
+            else: 
+                start = 2
+                end = N-1
+            for j in range(start, end, 2):
                 if object_grid is not None and object_grid[(i, j)]:
                     c_next = 0
                     continue
@@ -165,14 +175,41 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
                 # check for convergence
                 delta = max(delta, abs(c_next - grid[i, j]))
                 grid[i, j] = c_next
+        
+        # loop over all cells in the grid (except for y = 0, y=N)
+        for i in prange(1, N-1):
+            if i%2 == 0: 
+                start = 2
+                end = N-1
+            else: 
+                start = 1
+                end = N-2
+            for j in range(start, end, 2):
+                if object_grid is not None and object_grid[(i, j)]:
+                    c_next = 0
+                    continue
+                # retrieve all necessary values (also regarding wrap-around)
+                south = grid[i - 1, j] if i > 1 else 1
+                north = grid[i + 1, j] if i < N - 2 else 0
+                west = grid[i, j - 1] #if j > 0 else grid[i, N - 1]
+                east = grid[i, j + 1] #if j < N - 1 else grid[i, 0]
 
-        # borders, derivative is 0 at the borders
-        # grid[N-1, :] = grid[N-2, :]
-        # grid[0, :] = grid[1, :]
-        grid[:, N-1] = grid[:, N-2]
-        grid[:, 0] = grid[:, 1]
+                # SOR update equation
+                c_next = (omega / 4) * (west + east + south + north) + (1 - omega) * grid[
+                    i, j
+                ]
+
+                # check for convergence
+                delta = max(delta, abs(c_next - grid[i, j]))
+                grid[i, j] = c_next
+
+
+            # borders, derivative is 0 at the borders
+            grid[i, N-1] = grid[i, N-2]
+            grid[i, 0] = grid[i, 1]
+
         # assert np.all(grid[0, :] == 1 ), "the top row is not 1 anymore"
-        grid[object_grid==1] = 0
+        # grid[object_grid==1] = 0
         iter += 1
 
     return iter, grid
@@ -180,9 +217,7 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
 def perform_update_ADL(gridje, object_gridje, stenciltje, grid_indices, eta, seedje, SOR_pars):
     """
     Performs a single update step in the Aggregation Diffusion Limited (ADL) process.
-
     This function updates the diffusion grid using Successive Over-Relaxation (SOR). 
-
 
     Parameters:
         gridje (numpy.ndarray): The 2D diffusion grid representing the current state.
@@ -200,13 +235,28 @@ def perform_update_ADL(gridje, object_gridje, stenciltje, grid_indices, eta, see
             - object_gridje (numpy.ndarray): Updated object grid with a new placement.
             - stenciltje (numpy.ndarray): Updated stencil grid after placement.
     """
+
+    # set seed for reproducability
     np.random.seed(seedje)
+
+    # extract parameters for sor
     (tol, maxiters, omega) = SOR_pars
+
+    # do SOR convergence for this grid
+    # gridje[object_gridje==1] = 0
     iters, gridje = sequential_SOR(gridje, tol, maxiters, omega, object_gridje)
+    assert iters < maxiters, f"No convergence for SOR, omega: {omega}"
+
+    # create stencil around object, which are the potential cells joining the object
     stenciltje = generate_stencil(object_gridje)
+
+    # generate probabilities associated with each object
     probs = empty_object_places(gridje, stenciltje, object_gridje, eta)
     selected_index = np.random.choice(grid_indices, p=probs)
     new_index = np.unravel_index(selected_index,gridje.shape)
-    object_gridje[new_index] = 1
 
-    return gridje, object_gridje, stenciltje
+    # set the object grid of this new joined cell to 1 
+    object_gridje[new_index] = 1
+    gridje[new_index] = 0
+
+    return gridje, object_gridje, stenciltje, iters

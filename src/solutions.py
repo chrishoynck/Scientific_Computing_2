@@ -285,31 +285,49 @@ def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, m
 
     eta_list = dict()
     grid_list = dict()
+
+    # loop over all etas
     for eta in etas:
         print(f"Starting finding optimal omega for η: {eta}")
         all_omega_iters = []
+
+        # perfrom this 10 times (stochastic process)
         for i in range(10): 
             omegas_iters = dict()
             seedje += i
 
             print(f"starting experimentation for run {i} ")
+
+            # iterate over all omega values
             for j, omega in enumerate(omegas):
+
+                # use empty grid (initialized)
                 iter_grid = np.copy(grid)
                 object_grid_iter = np.copy(object_grid)
                 Sr_pars = (tol, maxiters, omega)
+
+                # generate initial potential new cells for the object 
                 stencil_iter = generate_stencil(object_grid_iter)
                 seedje +=j
                 
                 total_sor_iters = 0
                 for i in range(itertjes):
                     seedje+=i
+
+                    # update grid
                     iter_grid, object_grid_iter, stencil_iter, sor_iters = perform_update_ADL(iter_grid, object_grid_iter, stencil_iter, grid_indices, eta, seedje, Sr_pars)
                     total_sor_iters += sor_iters
+                
+                # compute average number of iterations until convergence
                 total_sor_iters/=itertjes 
-
+                
+                # save the number of iterations until conergence
                 omegas_iters[omega] = total_sor_iters
-            all_omega_iters.append(omegas_iters)
             
+            # save all the iterations for every run
+            all_omega_iters.append(omegas_iters)
+
+        # save all iterations and one configuration for all the eta values
         grid_list[eta] = (iter_grid, object_grid_iter)
         eta_list[eta] = all_omega_iters
     return eta_list, grid_list

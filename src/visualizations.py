@@ -106,50 +106,6 @@ def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val,
     return animation
 
 
-def plot_five_DLA(gridd, object_gridd, etas):
-    """
-    Visualizes the evolution of a 2D diffusion process at five different time points.
-
-    Generates a grid of subplots displaying the concentration distribution at 
-    t = 0, 0.001, 0.01, 0.1, 1.0. 
-
-    Parameters:
-        all_c (list of numpy.ndarray): 2D concentration grids at specified time points.
-        times (list of float): Time points corresponding to the concentration grids.
-    """
-    # plot setup
-    fig, axs = plt.subplots(2, 3, figsize=(4.4, 3.4), sharex=True, sharey=True)
-    fig.suptitle("2D Diffusion at Different t Values")
-    axs = axs.flatten()
-
-    lilac_purple_cmap = LinearSegmentedColormap.from_list("LilacPurple", ["#440154", "#FFFFFF"])
-    object_cmap = mcolors.ListedColormap(["none", "yellow"])  # Only one color, yellow
-    
-    # Hide the last unused subplot
-    axs[-1].set_visible(False)
-    for i in range(5):
-        
-        img = axs[i].imshow(gridd, cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1])
-        object_img = axs.imshow(object_gridd, cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1])
-        axs[i].set_title(r"$\eta:$" + f" {etas[i]}")
-        if i > 1:
-            axs[i].set_xlabel("x")
-
-    # set proper ticks and labels
-    axs[2].xaxis.set_tick_params(which="both", labelbottom=True)
-    axs[0].set_ylabel("y")
-    axs[3].set_ylabel("y")
-
-    cbar_ax = fig.add_axes([0.92, 0.09, 0.02, 0.7])  # [left, bottom, width, height]
-    # fig.colorbar(im, cax=cbar_ax, label="Concentration")
-    fig.colorbar(img, cax=cbar_ax, label="Concentration", shrink=0.8)
-
-    plt.tight_layout(rect=[0, 0, 0.93, 1])
-    plt.subplots_adjust(wspace=0.22, hspace=0.2)
-    plt.savefig("plots/diffusion_snapshots.png", dpi=300, bbox_inches="tight")
-    plt.show()
-
-
 def plot_omega_vs_iterations(eta_list, omegas):
     """
     Plots omega values on the x-axis and the corresponding mean iterations on the y-axis,
@@ -182,7 +138,7 @@ def plot_omega_vs_iterations(eta_list, omegas):
         best_omegatjes[eta] = best_omega
 
         # plot mean with errorbar 
-        axs[iter].errorbar(omegas, mean_iters, yerr=std_iters, fmt='o-', capsize=5, label=f"η: {eta}", alpha=0.7)
+        axs[iter].errorbar(omegas, mean_iters, yerr=std_iters, fmt='o-', capsize=5, label=f"η: {eta}", color= "#440154", alpha=1)
         axs[iter].set_title(title_string + f"{eta} ")
         axs[iter].grid(True)
 
@@ -226,7 +182,7 @@ def plot_five_DLA(gridjes, etas):
     for i, e in enumerate(etas):
         gridd, object_gridd = gridjes[e]
         img = axs[i].imshow(gridd, cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1])
-        object_img = axs[i].imshow(object_gridd, cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1])
+        axs[i].imshow(object_gridd, cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1])
         axs[i].set_title(r"$\eta:$" + f" {e}")
         if i > 1:
             axs[i].set_xlabel("x")

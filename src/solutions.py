@@ -120,9 +120,9 @@ def empty_object_places(grid, stenciltje, object_grid, eta):
     return emptied_grid.flatten()
 
 @njit(parallel=True)
-def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
+def parallel_SOR(grid,tol, max_iters, omega, object_grid=None):
     """
-    Solves using the Successive Over Relaxtion (SOR) iteration method.
+    Solves using the Successive Over Relaxtion (SOR) iteration method. Uses red-black block coloring scheme for parallelization
 
     The update equation is:
         c_{i,j}^{k+1} = (omega/4) * (c_{i+1,j}^{k} + c_{i,j+1}^{k} + c_{i,j+1}^{k} + (1 - omega) c_{i,j}^{k})
@@ -149,7 +149,7 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
     while delta > tol and iter < max_iters:
         delta = 0
 
-        # loop over all cells in the grid (except for y = 0, y=N)
+        # loop over all cells in the grid (except for y = 0, y=N) alternating between uneven and even row indexes 
         for i in prange(1, N-1):
             if i%2 == 0: 
                 start = 1
@@ -176,7 +176,7 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
                 delta = max(delta, abs(c_next - grid[i, j]))
                 grid[i, j] = c_next
         
-        # loop over all cells in the grid (except for y = 0, y=N)
+        # loop over all cells in the grid, alternating between uneven and even row indexes (except for y = 0, y=N)
         for i in prange(1, N-1):
             if i%2 == 0: 
                 start = 2
@@ -243,8 +243,7 @@ def perform_update_ADL(gridje, object_gridje, stenciltje, grid_indices, eta, see
     (tol, maxiters, omega) = SOR_pars
 
     # do SOR convergence for this grid
-    # gridje[object_gridje==1] = 0
-    iters, gridje = sequential_SOR(gridje, tol, maxiters, omega, object_gridje)
+    iters, gridje = parallel_SOR(gridje, tol, maxiters, omega, object_gridje)
     assert iters < maxiters, f"No convergence for SOR, omega: {omega}"
 
     # create stencil around object, which are the potential cells joining the object
@@ -260,3 +259,57 @@ def perform_update_ADL(gridje, object_gridje, stenciltje, grid_indices, eta, see
     gridje[new_index] = 0
 
     return gridje, object_gridje, stenciltje, iters
+
+
+def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, maxiters, grid_indices):
+    """
+    Optimizes omega parameter for a 2D DLA process.
+
+    Runs multiple experiments (10) to determine the optimal omega value for the Successive Over-Relaxation (SOR) 
+    solver by evaluating the average number of iterations required for convergence over a given number of steps.
+
+    Parameters:
+        itertjes (int): Number of iterations for the DLA process per run.
+        seedje (int): Seed value for random number generation to ensure reproducibility.
+        omegas (list of float): List of omega values to be tested.
+        grid (numpy.ndarray): Initial 2D grid representing concentration values.
+        object_grid (numpy.ndarray): 2D grid indicating object placements.
+        tol (float): Convergence tolerance for the SOR solver.
+        maxiters (int): Maximum number of iterations allowed for SOR convergence.
+        grid_indices (numpy.ndarray): Indices used for random selection in the DLA process.
+
+    Returns:
+        eta_list (dict): Dictionary mapping each η value to a list of recorded SOR iterations for each omega.
+        grid_list (dict): Dictionary mapping each η value to the final state of the grid and object grid.
+    """
+
+    eta_list = dict()
+    grid_list = dict()
+    for eta in etas:
+        print(f"Starting finding optimal omega for η: {eta}")
+        all_omega_iters = []
+        for i in range(10): 
+            omegas_iters = dict()
+            seedje += i
+
+            print(f"starting experimentation for run {i} ")
+            for j, omega in enumerate(omegas):
+                iter_grid = np.copy(grid)
+                object_grid_iter = np.copy(object_grid)
+                Sr_pars = (tol, maxiters, omega)
+                stencil_iter = generate_stencil(object_grid_iter)
+                seedje +=j
+                
+                total_sor_iters = 0
+                for i in range(itertjes):
+                    seedje+=i
+                    iter_grid, object_grid_iter, stencil_iter, sor_iters = perform_update_ADL(iter_grid, object_grid_iter, stencil_iter, grid_indices, eta, seedje, Sr_pars)
+                    total_sor_iters += sor_iters
+                total_sor_iters/=itertjes 
+
+                omegas_iters[omega] = total_sor_iters
+            all_omega_iters.append(omegas_iters)
+            
+        grid_list[eta] = (iter_grid, object_grid_iter)
+        eta_list[eta] = all_omega_iters
+    return eta_list, grid_list

@@ -70,19 +70,16 @@ def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val,
     """
     fig, axs = plt.subplots(figsize=(4.5, 4.5))
 
+    # create colormaps and initial maps
     lilac_purple_cmap = LinearSegmentedColormap.from_list("LilacPurple", ["#440154", "#FFFFFF"])
     img = axs.imshow(gridd, cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1])
     plt.colorbar(img, ax=axs, label="Concentration", shrink=0.8)
-
-    # object_mask = np.zeros_like(object_gridd, dtype=float)
-    # object_mask[object_gridd ==1] = 1  # Mark object positions
     object_cmap = mcolors.ListedColormap(["none", "yellow"])  # Only one color, yellow
     object_img = axs.imshow(object_gridd, cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1])
-    
-    # img = axs.imshow(object_gridd, cmap=cmap, origin="lower", extent=[0, 1, 0, 1])
-    # plt.colorbar(img, ax=axs, label="Concentration", shrink=0.8)
+
     axs.set_title("2D Diffusion Simulation")
 
+    # update grid and viusalize
     def animate(frame):
         nonlocal  gridd, stencill, object_gridd, seedje
         seedje += frame
@@ -95,18 +92,17 @@ def animate_1a(gridd, stencill, object_gridd, grid_indices, eta, seedje, sr_val,
         if frame%100 == 0:
             print(f"finished first {frame} frames")
         return img, object_img
+    
     # Create animation
     animation = FuncAnimation(
         fig, animate, frames=itertjes, interval=interval, blit=False
     )
-    # writer=PillowWriter(fps=200, metadata={"duration": 0.05})
-    animation.save(f"plots/2D_diffusion_p_{eta}.gif", writer="ffmeg", fps=50)
 
+    animation.save(f"plots/2D_diffusion_p_{eta}.gif", writer="ffmeg", fps=50)
     plt.close(fig)
     return animation
 
-
-def plot_omega_vs_iterations(eta_list, omegas):
+def plot_omega_vs_iterations(omegas, all_iters):
     """
     Plots omega values on the x-axis and the corresponding mean iterations on the y-axis,
     including standard deviation error bars over multiple runs.
@@ -124,21 +120,30 @@ def plot_omega_vs_iterations(eta_list, omegas):
     best_omegatjes = dict()
 
     # Convert list of dictionaries to a structured data format
-    for eta, all_omega_iters in eta_list.items():
-        # all_runs.extend(all_omega_iters)
+    for eta, all_omega_iters in all_iters.items():
         omega_iters_matrix = np.array([[run[omega] for omega in omegas] for run in all_omega_iters])
 
-        # Compute mean and standard deviation
-        mean_iters = np.mean(omega_iters_matrix, axis=0)
-        std_iters = np.std(omega_iters_matrix, axis=0)
-        
-        # establish optimal omega for specific eta
-        min_iters = np.argmin(mean_iters)
+        print(np.shape(omega_iters_matrix))
+
+        #Compute mean and variance within each run
+        mean_within_run = np.mean(omega_iters_matrix, axis=2) 
+        var_within_run = np.var(omega_iters_matrix, axis=2)   
+
+        #Compute mean of means between runs
+        mean_of_means = np.mean(mean_within_run, axis=0)
+
+        #Compute variance between runs
+        var_between_runs = np.var(mean_within_run, axis=0)
+
+        #Compute total variance (sum of between-run variance and within-run variance)
+        total_variance = var_between_runs + np.mean(var_within_run, axis=0)
+
+        min_iters = np.argmin(mean_of_means)
         best_omega = omegas[min_iters]
         best_omegatjes[eta] = best_omega
 
         # plot mean with errorbar 
-        axs[iter].errorbar(omegas, mean_iters, yerr=std_iters, fmt='o-', capsize=5, label=f"η: {eta}", color= "#440154", alpha=1)
+        axs[iter].errorbar(omegas, mean_of_means, yerr=np.sqrt(total_variance), fmt='o-', capsize=5, label=f"η: {eta}", color= "#440154", alpha=1)
         axs[iter].set_title(title_string + f"{eta} ")
         axs[iter].grid(True)
 
@@ -158,6 +163,7 @@ def plot_omega_vs_iterations(eta_list, omegas):
     return best_omegatjes
 
 
+
 def plot_five_DLA(gridjes, etas):
     """
     Visualizes the evolution of a 2D DLA process at different η values.
@@ -170,10 +176,12 @@ def plot_five_DLA(gridjes, etas):
 
     """
     # plot setup
+    assert len(etas) == 5, f"The setup of this plot is for 5 different eta values, not {len(etas)}"
     fig, axs = plt.subplots(2, 3, figsize=(5.2, 4), sharex=True, sharey=True)
     fig.suptitle(r"DLA Process for Different $\eta$ Values ")
     axs = axs.flatten()
 
+    # colormaps
     lilac_purple_cmap = LinearSegmentedColormap.from_list("LilacPurple", ["#440154", "#FFFFFF"])
     object_cmap = mcolors.ListedColormap(["none", "yellow"])  # Only one color, yellow
     

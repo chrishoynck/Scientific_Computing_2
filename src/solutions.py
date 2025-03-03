@@ -285,15 +285,18 @@ def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, m
 
     eta_list = dict()
     grid_list = dict()
+    eta_iters = dict()
 
     # loop over all etas
     for eta in etas:
         print(f"Starting finding optimal omega for η: {eta}")
         all_omega_iters = []
+        all_mean_iters = []
 
         # perfrom this 10 times (stochastic process)
         for i in range(10): 
             omegas_iters = dict()
+            all_iters_dict = dict()
             seedje += i
 
             print(f"starting experimentation for run {i} ")
@@ -311,23 +314,29 @@ def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, m
                 seedje +=j
                 
                 total_sor_iters = 0
+                all_itertjes = []
                 for i in range(itertjes):
                     seedje+=i
 
                     # update grid
                     iter_grid, object_grid_iter, stencil_iter, sor_iters = perform_update_ADL(iter_grid, object_grid_iter, stencil_iter, grid_indices, eta, seedje, Sr_pars)
                     total_sor_iters += sor_iters
+                    all_itertjes.append(sor_iters)
                 
                 # compute average number of iterations until convergence
                 total_sor_iters/=itertjes 
+
                 
                 # save the number of iterations until conergence
                 omegas_iters[omega] = total_sor_iters
+                all_iters_dict[omega] = all_itertjes
             
             # save all the iterations for every run
             all_omega_iters.append(omegas_iters)
+            all_mean_iters.append(all_iters_dict)
 
         # save all iterations and one configuration for all the eta values
         grid_list[eta] = (iter_grid, object_grid_iter)
         eta_list[eta] = all_omega_iters
-    return eta_list, grid_list
+        eta_iters[eta] = all_mean_iters
+    return eta_list, grid_list, eta_iters

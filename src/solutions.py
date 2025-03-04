@@ -1,6 +1,9 @@
+import random as random
+
 import numpy as np
-from scipy.ndimage import binary_dilation
 from numba import njit, prange
+from scipy.ndimage import binary_dilation
+
 
 def place_objects(N, size_object=1):
     """
@@ -17,16 +20,17 @@ def place_objects(N, size_object=1):
     """
 
     object_grid = np.zeros((N, N))
-    y = int(N/2 - size_object/2)
+    y = int(N / 2 - size_object / 2)
 
     points = [
-        (N -1- k, y + j) for j in range(size_object) for k in range(size_object)
+        (N - 1 - k, y + j) for j in range(size_object) for k in range(size_object)
     ]
 
     # set value of indexes that object occupies 1
     object_grid[tuple(zip(*points))] = 1
-    
+
     return object_grid
+
 
 def generate_stencil(object_grid):
     """
@@ -43,9 +47,13 @@ def generate_stencil(object_grid):
     """
     stencil = np.copy(object_grid)
     # Define a strict Neumann (4-neighbor) structuring element
-    neighborhood = np.array([[0, 1, 0],  # Only North, South, West, East
-                    [1, 0, 1],
-                    [0, 1, 0]])
+    neighborhood = np.array(
+        [
+            [0, 1, 0],  # Only North, South, West, East
+            [1, 0, 1],
+            [0, 1, 0],
+        ]
+    )
 
     # Apply binary dilation to get the stencil
     stencil = binary_dilation(object_grid, structure=neighborhood).astype(int)
@@ -54,9 +62,11 @@ def generate_stencil(object_grid):
     stencil[object_grid == 1] = 0  # Exclude original object points
     return stencil
 
+
 def save_grid_to_file(grid, filename="data/grid_output.txt"):
     np.savetxt(filename, grid, fmt="%.6f")  # Save with 6 decimal places for precision
     print(f"Grid saved to {filename}")
+
 
 def load_grid_from_file(filename="data/grid_output.txt"):
     return np.loadtxt(filename)  # Loads the 2D array back
@@ -70,9 +80,11 @@ def initialize_grid(N, object_grid):
         object_grid (np.array): 2D matrix with 1s one places where the object is placed (0s everywhere else)
     """
 
-    # assert parameters are suitable for this implementation 
+    # assert parameters are suitable for this implementation
     assert N > 1, "Grid size must be bigger than 1x1"
-    assert object_grid.shape == (N, N), f"object_grid must have the same dimensions as {N, N}"
+    assert object_grid.shape == (N, N), (
+        f"object_grid must have the same dimensions as {N, N}"
+    )
 
     grid = np.zeros((N, N))
 
@@ -80,14 +92,15 @@ def initialize_grid(N, object_grid):
     grid[N - 1, :] = 0  # top boundary
 
     # objects are sinks
-    grid[object_grid==1] = 0
+    grid[object_grid == 1] = 0
     return grid
+
 
 def empty_object_places(grid, stenciltje, object_grid, eta):
     """
     Computes the growth probabilities for candidate sites in a diffusion-limited aggregation model.
 
-    The function extracts valid growth sites from the diffusion grid, normalizes their values, 
+    The function extracts valid growth sites from the diffusion grid, normalizes their values,
     and applies an exponent `nu` to control growth bias.
 
     Parameters:
@@ -99,28 +112,33 @@ def empty_object_places(grid, stenciltje, object_grid, eta):
     Returns:
         numpy.ndarray: A normalized probability distribution over valid growth sites.
     """
-    assert object_grid.shape == grid.shape, "object_grid must have the same dimensions as diffusion grid"
-    
+    assert object_grid.shape == grid.shape, (
+        "object_grid must have the same dimensions as diffusion grid"
+    )
+
     # consider only potential new cells
     emptied_grid = np.copy(grid)
-    emptied_grid[stenciltje==0] = 0 
+    emptied_grid[stenciltje == 0] = 0
 
     # numerical errors can cause a value to slightly drop below zero -> set to zero
     if np.any(emptied_grid < 0):
-        emptied_grid[emptied_grid < 0] = 0 
-    
+        emptied_grid[emptied_grid < 0] = 0
+
     # apply eta parameter: how strongly the concentration is involved in probability
     emptied_grid = np.power(emptied_grid, eta)
     total_sum = emptied_grid.sum()
 
     # if sum is 0, no probabilities are assigned, so no object or diffusion source is present
-    assert total_sum > 0, "Initialize object or source, The Advection Diffusion does not work on an empty grid"
-    emptied_grid/=total_sum
-    
+    assert total_sum > 0, (
+        "Initialize object or source, The Advection Diffusion does not work on an empty grid"
+    )
+    emptied_grid /= total_sum
+
     return emptied_grid.flatten()
 
+
 @njit(parallel=True)
-def parallel_SOR(grid,tol, max_iters, omega, object_grid=None):
+def parallel_SOR(grid, tol, max_iters, omega, object_grid=None):
     """
     Solves using the Successive Over Relaxtion (SOR) iteration method. Uses red-black block coloring scheme for parallelization
 
@@ -137,7 +155,7 @@ def parallel_SOR(grid,tol, max_iters, omega, object_grid=None):
         int: Number of iterations required to reach convergence.
         numpy.ndarray: Final grid after iterations.
     """
-    N= len(grid)
+    N = len(grid)
     assert N > 1, (
         f"bord is {N}x{N}, but needs to be at least 2*2 for this diffusion implementation"
     )
@@ -149,14 +167,14 @@ def parallel_SOR(grid,tol, max_iters, omega, object_grid=None):
     while delta > tol and iter < max_iters:
         delta = 0
 
-        # loop over all cells in the grid (except for y = 0, y=N) alternating between uneven and even row indexes 
-        for i in prange(1, N-1):
-            if i%2 == 0: 
+        # loop over all cells in the grid (except for y = 0, y=N) alternating between uneven and even row indexes
+        for i in prange(1, N - 1):
+            if i % 2 == 0:
                 start = 1
-                end = N-2
-            else: 
+                end = N - 2
+            else:
                 start = 2
-                end = N-1
+                end = N - 1
             for j in range(start, end, 2):
                 if object_grid is not None and object_grid[(i, j)]:
                     c_next = 0
@@ -164,26 +182,26 @@ def parallel_SOR(grid,tol, max_iters, omega, object_grid=None):
                 # retrieve all necessary values (also regarding wrap-around)
                 south = grid[i - 1, j] if i > 0 else 1
                 north = grid[i + 1, j] if i < N - 1 else 0
-                west = grid[i, j - 1] #if j > 0 else grid[i, N - 1]
-                east = grid[i, j + 1] #if j < N - 1 else grid[i, 0]
+                west = grid[i, j - 1]  # if j > 0 else grid[i, N - 1]
+                east = grid[i, j + 1]  # if j < N - 1 else grid[i, 0]
 
                 # SOR update equation
-                c_next = (omega / 4) * (west + east + south + north) + (1 - omega) * grid[
-                    i, j
-                ]
+                c_next = (omega / 4) * (west + east + south + north) + (
+                    1 - omega
+                ) * grid[i, j]
 
                 # check for convergence
                 delta = max(delta, abs(c_next - grid[i, j]))
                 grid[i, j] = c_next
-        
+
         # loop over all cells in the grid, alternating between uneven and even row indexes (except for y = 0, y=N)
-        for i in prange(1, N-1):
-            if i%2 == 0: 
+        for i in prange(1, N - 1):
+            if i % 2 == 0:
                 start = 2
-                end = N-1
-            else: 
+                end = N - 1
+            else:
                 start = 1
-                end = N-2
+                end = N - 2
             for j in range(start, end, 2):
                 if object_grid is not None and object_grid[(i, j)]:
                     c_next = 0
@@ -191,21 +209,20 @@ def parallel_SOR(grid,tol, max_iters, omega, object_grid=None):
                 # retrieve all necessary values (also regarding wrap-around)
                 south = grid[i - 1, j] if i > 1 else 1
                 north = grid[i + 1, j] if i < N - 2 else 0
-                west = grid[i, j - 1] #if j > 0 else grid[i, N - 1]
-                east = grid[i, j + 1] #if j < N - 1 else grid[i, 0]
+                west = grid[i, j - 1]  # if j > 0 else grid[i, N - 1]
+                east = grid[i, j + 1]  # if j < N - 1 else grid[i, 0]
 
                 # SOR update equation
-                c_next = (omega / 4) * (west + east + south + north) + (1 - omega) * grid[
-                    i, j
-                ]
+                c_next = (omega / 4) * (west + east + south + north) + (
+                    1 - omega
+                ) * grid[i, j]
 
                 # check for convergence
                 delta = max(delta, abs(c_next - grid[i, j]))
                 grid[i, j] = c_next
 
-
             # borders, derivative is 0 at the borders
-            grid[i, N-1] = grid[i, N-2]
+            grid[i, N - 1] = grid[i, N - 2]
             grid[i, 0] = grid[i, 1]
 
         # assert np.all(grid[0, :] == 1 ), "the top row is not 1 anymore"
@@ -214,10 +231,13 @@ def parallel_SOR(grid,tol, max_iters, omega, object_grid=None):
 
     return iter, grid
 
-def perform_update_ADL(gridje, object_gridje, stenciltje, grid_indices, eta, seedje, SOR_pars):
+
+def perform_update_ADL(
+    gridje, object_gridje, stenciltje, grid_indices, eta, seedje, SOR_pars
+):
     """
     Performs a single update step in the Aggregation Diffusion Limited (ADL) process.
-    This function updates the diffusion grid using Successive Over-Relaxation (SOR). 
+    This function updates the diffusion grid using Successive Over-Relaxation (SOR).
 
     Parameters:
         gridje (numpy.ndarray): The 2D diffusion grid representing the current state.
@@ -252,20 +272,22 @@ def perform_update_ADL(gridje, object_gridje, stenciltje, grid_indices, eta, see
     # generate probabilities associated with each object
     probs = empty_object_places(gridje, stenciltje, object_gridje, eta)
     selected_index = np.random.choice(grid_indices, p=probs)
-    new_index = np.unravel_index(selected_index,gridje.shape)
+    new_index = np.unravel_index(selected_index, gridje.shape)
 
-    # set the object grid of this new joined cell to 1 
+    # set the object grid of this new joined cell to 1
     object_gridje[new_index] = 1
     gridje[new_index] = 0
 
     return gridje, object_gridje, stenciltje, iters
 
 
-def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, maxiters, grid_indices):
+def optimize_omega_DLA(
+    itertjes, etas, seedje, omegas, grid, object_grid, tol, maxiters, grid_indices
+):
     """
     Optimizes omega parameter for a 2D DLA process.
 
-    Runs multiple experiments (10) to determine the optimal omega value for the Successive Over-Relaxation (SOR) 
+    Runs multiple experiments (10) to determine the optimal omega value for the Successive Over-Relaxation (SOR)
     solver by evaluating the average number of iterations required for convergence over a given number of steps.
 
     Parameters:
@@ -294,7 +316,7 @@ def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, m
         all_mean_iters = []
 
         # perfrom this 10 times (stochastic process)
-        for i in range(10): 
+        for i in range(10):
             omegas_iters = dict()
             all_iters_dict = dict()
             seedje += i
@@ -303,34 +325,42 @@ def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, m
 
             # iterate over all omega values
             for j, omega in enumerate(omegas):
-
                 # use empty grid (initialized)
                 iter_grid = np.copy(grid)
                 object_grid_iter = np.copy(object_grid)
                 Sr_pars = (tol, maxiters, omega)
 
-                # generate initial potential new cells for the object 
+                # generate initial potential new cells for the object
                 stencil_iter = generate_stencil(object_grid_iter)
-                seedje +=j
-                
+                seedje += j
+
                 total_sor_iters = 0
                 all_itertjes = []
                 for i in range(itertjes):
-                    seedje+=i
+                    seedje += i
 
                     # update grid
-                    iter_grid, object_grid_iter, stencil_iter, sor_iters = perform_update_ADL(iter_grid, object_grid_iter, stencil_iter, grid_indices, eta, seedje, Sr_pars)
+                    iter_grid, object_grid_iter, stencil_iter, sor_iters = (
+                        perform_update_ADL(
+                            iter_grid,
+                            object_grid_iter,
+                            stencil_iter,
+                            grid_indices,
+                            eta,
+                            seedje,
+                            Sr_pars,
+                        )
+                    )
                     total_sor_iters += sor_iters
                     all_itertjes.append(sor_iters)
-                
-                # compute average number of iterations until convergence
-                total_sor_iters/=itertjes 
 
-                
+                # compute average number of iterations until convergence
+                total_sor_iters /= itertjes
+
                 # save the number of iterations until conergence
                 omegas_iters[omega] = total_sor_iters
                 all_iters_dict[omega] = all_itertjes
-            
+
             # save all the iterations for every run
             all_omega_iters.append(omegas_iters)
             all_mean_iters.append(all_iters_dict)
@@ -340,3 +370,211 @@ def optimize_omega_DLA(itertjes, etas, seedje, omegas, grid, object_grid, tol, m
         eta_list[eta] = all_omega_iters
         eta_iters[eta] = all_mean_iters
     return eta_list, grid_list, eta_iters
+
+
+def initialize_grid_with_cluster(N, cluster_row=0, cluster_col=15):
+    """
+    Initialize a square grid and set a cluster at a specified offset.
+
+    Parameters:
+        N (int): The size of the grid. The grid will be an N x N numpy array.
+        cluster_row (int, optional): The base row index for the cluster's starting position. Defaults to 0.
+        cluster_col (int, optional): The base column index for the cluster's starting position. Defaults to 15.
+
+    Returns:
+        tuple: A tuple containing:
+            - grid (np.ndarray): An N x N grid with the cluster cell(s) marked as 1.
+            - cluster_positions (list of tuple): A list of the relative cluster positions used to
+              set the cluster on the grid.
+    """
+
+    grid = np.zeros((N, N))
+
+    # Set the initial starting cluster as a single cell in the middle of the bottom row
+    cluster_positions = [
+        (0, 50),
+    ]
+
+    for dr, dc in cluster_positions:
+        r = cluster_row + dr
+        c = cluster_col + dc
+
+        if 0 <= r < N and 0 <= c < N:
+            grid[r, c] = 1
+    return grid, cluster_positions
+
+
+def monte_carlo_dla(N, p_join, cluster_length, animation=False):
+    """
+    Simulate a Diffusion-Limited Aggregation (DLA) process using a Monte Carlo approach.
+
+    Parameters:
+        N (int): The size of the square grid (N x N).
+        p_join (float): The probability that a random walker will join the cluster upon contact.
+        cluster_length (int): The target number of cells in the cluster at which to stop the simulation.
+        animation (bool, optional): If True, intermediate grid states are stored for creating an animation.
+                                    If False, only the final grid state is returned. Defaults to False.
+
+    Returns:
+        list: A list of numpy.ndarray objects representing grid states. When animation is True, this list
+              contains multiple intermediate grid states; otherwise, it contains a single grid representing
+              the final state of the simulation.
+    """
+
+    grid, cluster_positions = initialize_grid_with_cluster(N)
+    all_grids = []
+    current_walkers = []
+    no_update = 0
+    while len(cluster_positions) < cluster_length:
+        new_walker = generating_random_walkers(cluster_positions, N, current_walkers)
+        if new_walker is not None:
+            current_walkers.append(new_walker)
+
+        prev_len = len(cluster_positions)
+        current_walkers, cluster_positions = moving_random_walkers(
+            current_walkers, cluster_positions, N, p_join
+        )
+        if prev_len == len(cluster_positions):
+            no_update += 1
+        else:
+            no_update = 0
+
+        if p_join == 0.01 and no_update > 80000:
+            print("No update for 50000 steps")
+            break
+        if p_join == 0.05 and no_update > 50000:
+            print("No update for 40000 steps")
+            break
+        if p_join == 0.6 and no_update > 20000:
+            print("No update for 10000 steps")
+            break
+        if p_join == 0.8 and no_update > 20000:
+            print("No update for 5000 steps")
+            break
+        if p_join == 1 and no_update > 20000:
+            print("No update for 1000 steps")
+            break
+
+        grid = np.zeros((N, N))
+
+        for r, c in current_walkers:
+            grid[r, c] = 2
+        for r, c in cluster_positions:
+            grid[r, c] = 1
+
+        if (animation and len(cluster_positions) % 50 == 0) or (
+            animation and len(cluster_positions) < 750
+        ):
+            all_grids.append(grid)
+
+    if not animation:
+        all_grids.append(grid)
+
+    return all_grids
+
+
+def generating_random_walkers(cluster_positions, N, current_walkers):
+    """
+    Create a random walker at the top of the grid if the selected position is free.
+
+    Parameters:
+        cluster_positions (list of tuple): A list of (row, column) tuples representing positions that are part of the cluster.
+        N (int): The size of the grid (the grid is assumed to be N x N).
+        current_walkers (list of tuple): A list of (row, column) tuples representing the positions of active walkers.
+
+    Returns:
+        tuple or None: The (row, column) position for the new walker if the chosen location is unoccupied;
+                       otherwise, returns None.
+    """
+    col_position = np.random.randint(0, N - 1)
+    if (N - 1, col_position) not in cluster_positions and (
+        N,
+        col_position,
+    ) not in current_walkers:
+        return (N - 1, col_position)
+
+    return None
+
+
+def adjacent_to_cluster(r, c, cluster_positions):
+    """
+    Check if a cell is adjacent to any cell in the cluster.
+
+    Parameters:
+        r (int): The row index of the cell.
+        c (int): The column index of the cell.
+        cluster_positions (iterable of tuple): An iterable containing (row, column) tuples that represent
+                                                 the positions of cells in the cluster.
+
+    Returns:
+        bool: True if at least one of the four neighboring cells is in the cluster; False otherwise.
+    """
+    neighbors = [(r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)]
+
+    # If any neighbor is in the cluster, we say that (r, c) is adjacent
+    return any(neighbor in cluster_positions for neighbor in neighbors)
+
+
+def moving_random_walkers(current_walkers, cluster_positions, N, p_join):
+    """
+    Move random walkers and update cluster positions based on a joining probability.
+
+    Parameters:
+        current_walkers (list of tuple): A list of (row, column) tuples representing the positions of active walkers.
+        cluster_positions (list of tuple): A list of (row, column) tuples representing the positions of cells in the cluster.
+        N (int): The size of the grid (i.e., the grid is N x N).
+        p_join (float): The probability (between 0 and 1) that a walker adjacent to the cluster will join it.
+
+    Returns:
+        tuple: A tuple containing:
+            - new_walkers (list of tuple): The updated list of walker positions after movement.
+            - cluster_positions (list of tuple): The updated list of cluster positions, including any new additions from walkers joining.
+
+    Notes:
+        - If the next move places a walker outside the vertical grid boundaries, the walker is removed.
+        - For horizontal moves, periodic boundary conditions are applied so that a walker exiting one side reappears on the opposite side.
+    """
+
+    new_walkers = []
+
+    for r, c in current_walkers:
+        north = (r + 1, c)
+        south = (r - 1, c)
+        east = (r, c + 1)
+        west = (r, c - 1)
+        directions = [north, south, east, west]
+
+        next_r, next_c = random.choice(directions)
+        # Removes walker if it goes outside the grid on the top or at the bottom
+        if next_r < 0 or next_r >= N:
+            new_col = np.random.randint(0, N)
+            new_walker = (N - 1, new_col)
+            # Optionally, check for conflicts with existing walkers or cluster positions.
+            if new_walker not in cluster_positions and new_walker not in new_walkers:
+                new_walkers.append(new_walker)
+            continue
+
+        # Periodic boundaries
+        if next_c < 0:
+            next_c = N - 1
+        elif next_c >= N:
+            next_c = 0
+
+        if (
+            (next_r, next_c) in current_walkers
+            or (next_r, next_c) in new_walkers
+            or (next_r, next_c) in cluster_positions
+        ):
+            new_walkers.append((r, c))
+            continue
+
+        if adjacent_to_cluster(next_r, next_c, cluster_positions):
+            if random.random() < p_join:
+                # print(f"Walker has joined the cluster at position {(next_r, next_c)}")
+                cluster_positions.append((next_r, next_c))
+            else:
+                new_walkers.append((r, c))
+        else:  # If the walker is not in the cluster or in the current_walkers list and the next move is free, move the walker to the position
+            new_walkers.append((next_r, next_c))
+
+    return new_walkers, cluster_positions

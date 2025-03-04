@@ -4,6 +4,7 @@ import numpy as np
 import src.solutions as solutions
 from matplotlib.animation import FuncAnimation
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
+import os
 
 
 def visualize_object_grid(obj_grid, stage):
@@ -330,4 +331,57 @@ def visualize_for_different_probs(grids, probs_join):
         dpi=300,
         bbox_inches="tight",
     )
+    plt.show()
+
+def plot_final_6_gray_scott(u_final_list, param_sets, N, output_dir="plots"):
+    """
+   Generates and saves a 2x3 grid of final concentration fields from the Gray-Scott model.
+    
+    Parameters:
+        u_final_list (list): List of 2D numpy arrays representing final U concentrations.
+        param_sets (list): List of (f, k) parameter tuples.
+        N (int): Grid size.
+        output_dir (string): Directory to save the output figure is 'plots'.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # colormap
+    cmap = LinearSegmentedColormap.from_list("custom_colormap", ["#440154", "#3b528b", "#fde725"], N=256)
+
+    fig, axs = plt.subplots(2, 3, figsize=(5.2, 4), sharex=True, sharey=True)
+    fig.suptitle(r"Final U concentration in Gray-Scott model for different $f$ and $k$")
+    axs = axs.flatten()  
+
+    # iterate over parameter sets
+    for idx, (ax, u_final, param_set) in enumerate(zip(axs, u_final_list, param_sets)):
+        img = ax.imshow(u_final, cmap=cmap, origin="lower", vmin=0, vmax=1, extent=[0, N, 0, N])
+        ax.set_title(r"$f$: " + f"{param_set[0]:.3f}, " + r"$k$: " + f"{param_set[1]:.3f}", fontsize=10)
+
+    # y-axis (labels and ticks)
+    axs[0].set_ylabel("y")
+    axs[3].set_ylabel("y")
+    axs[0].set_yticks([0, N//2, N])
+    axs[3].set_yticks([0, N//2, N])
+
+    # x-axis (labels and ticks)
+    axs[3].xaxis.set_tick_params(which="both", labelbottom=True)
+    axs[4].xaxis.set_tick_params(which="both", labelbottom=True)
+    axs[5].xaxis.set_tick_params(which="both", labelbottom=True)
+    axs[3].set_xlabel("x")
+    axs[4].set_xlabel("x")
+    axs[5].set_xlabel("x")
+    axs[3].set_xticks([0, N//2, N])
+    axs[4].set_xticks([0, N//2, N])
+    axs[5].set_xticks([0, N//2, N])
+
+    plt.subplots_adjust(wspace=0.3, hspace=0.3)
+
+    # colorbar
+    cbar_ax = fig.add_axes([0.95, 0.09, 0.02, 0.7])
+    cbar = fig.colorbar(img, cax=cbar_ax, shrink=0.8)
+    cbar.set_label("Concentration of U", fontsize=12)
+    
+    frame_path = f"{output_dir}/gray_scott_multi.png"
+    plt.subplots_adjust(wspace=0.22, hspace=0.09)
+    plt.savefig(frame_path, bbox_inches='tight', dpi=300)
     plt.show()

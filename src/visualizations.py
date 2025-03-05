@@ -333,7 +333,7 @@ def visualize_for_different_probs(grids, probs_join):
     )
     plt.show()
 
-def plot_final_gray_scott(u_final_list, param_sets, N, output_dir="plots"):
+def plot_final_gray_scott(u_final_list, param_set, N, output_dir, plot_number):
     """
    Generates and saves a 2x2 grid of final concentration fields from the Gray-Scott model.
     
@@ -353,8 +353,8 @@ def plot_final_gray_scott(u_final_list, param_sets, N, output_dir="plots"):
     axs = axs.flatten()  
 
     # iterate over parameter sets
-    for idx, (ax, u_final, param_set) in enumerate(zip(axs, u_final_list, param_sets)):
-        img = ax.imshow(u_final, cmap=cmap, origin="lower", vmin=0.3, vmax=1, extent=[0, N, 0, N])
+    for idx, (ax, u_final, param_set) in enumerate(zip(axs, u_final_list, param_set)):
+        img = ax.imshow(u_final, cmap=cmap, origin="lower", vmin=0.5, vmax=1, extent=[0, N, 0, N])
         ax.set_title(r"$f$: " + f"{param_set[0]:.3f}, " + r"$k$: " + f"{param_set[1]:.3f}", fontsize=10)
 
     # y-axis (labels and ticks)
@@ -378,6 +378,6 @@ def plot_final_gray_scott(u_final_list, param_sets, N, output_dir="plots"):
     cbar = fig.colorbar(img, cax=cbar_ax, shrink=0.8)
     cbar.set_label("Concentration of U", fontsize=12)
     
-    frame_path = f"{output_dir}/gray_scott_multi.png"
+    frame_path = f"{output_dir}/gray_scott_plots_{plot_number}.png"
     plt.savefig(frame_path, bbox_inches='tight', dpi=300)
     plt.show()

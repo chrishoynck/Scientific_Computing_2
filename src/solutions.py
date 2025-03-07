@@ -579,25 +579,38 @@ def moving_random_walkers(current_walkers, cluster_positions, N, p_join):
 
     return new_walkers, cluster_positions
 
-def initialize_grid_gray_scott(N):
+def initialize_grid_gray_scott(N, noise_level):
     """
     Initializes the U and V concentration fields for the Gray-Scott model.
 
     Parameters:
         N (int): Grid size (N x N).
+        noise_level (float): Standard deviation of Gaussian noise to be added to the initial conditions.
 
     Returns:
-        tuple: Two 2D numpy arrays representing the initial concentration field U and V.
+        tuple: Two 2D numpy arrays representing the initial concentration fields U and V.
     """
     assert isinstance(N, int) and N > 0, "Grid size N must be a positive integer."
     
     u = np.ones((N, N)) * 0.5  # initialize u with 0.5 everywhere
     v = np.zeros((N, N))  # initialize v with 0.0
-    
-    # small perturbation in the center
-    r = N // 10  # size of perturbation region
-    v[N//2 - r:N//2 + r, N//2 - r:N//2 + r] = 0.25
-    
+
+    # center region
+    r = N // 20  # size of region
+    center_x = N // 2  # center coordinates
+    start, end = center_x - r, center_x + r  # bounds
+
+    # small perturbation in the center of v
+    v[start:end, start:end] = 0.25
+
+    # noise for u in center
+    noise_u = np.random.normal(0, noise_level, (2*r, 2*r)) 
+    u[start:end, start:end] += noise_u
+
+    # noise for v in center
+    noise_v = np.random.normal(0, noise_level, (2*r, 2*r)) 
+    v[start:end, start:end] += noise_v
+
     assert u.shape == (N, N) and v.shape == (N, N), "U and V grids must have shape (N, N)."
     return u, v
 
@@ -633,7 +646,7 @@ def laplace(grid, dx):
     assert laplace_grid.shape == grid.shape, "Laplacian output must have the same shape as input grid."
     return laplace_grid
 
-def update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k, noise_level):
+def update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k):
     """
     Simulates the Gray-Scott reaction-diffusion process and returns the final concentration fields.
     
@@ -648,19 +661,25 @@ def update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k, noise_level):
         Dv (float): Diffusion coefficient for V.
         f (float): Feed rate.
         k (float): Kill rate.
-        noise_level (float): Amplitude of noise added to the system.
     
     Returns:
         tuple: Final concentration fields U and V as 2D numpy arrays.
     """
-    for _ in range(num_steps):
+    for i in range(num_steps):
         Lu = laplace(u, dx)
         Lv = laplace(v, dx)
-        
-        # reaction-diffusion updates
-        uvv = u * v**2
-        du_dt = Du * Lu - uvv + f * (1 - u) + noise_level * np.random.randn(N, N)
-        dv_dt = Dv * Lv + uvv - (f + k) * v + noise_level * np.random.randn(N, N)
+
+        # smallest_value = np.finfo(np.float64).tiny  # Smallest positive float
+        # v = np.maximum(v, smallest_value)
+        # u = np.maximum(u, smallest_value)
+
+        uvv = u * np.square(v)
+
+        # uvv = u * v**2
+        # du_dt = Du * Lu - uvv + f * (1 - u) + noise_level * np.random.randn(N, N)
+        # dv_dt = Dv * Lv + uvv - (f + k) * v + noise_level * np.random.randn(N, N)
+        du_dt = Du * Lu - uvv + f * (1 - u)
+        dv_dt = Dv * Lv + uvv - (f + k) * v
         
         u += du_dt * dt
         v += dv_dt * dt
@@ -687,8 +706,8 @@ def run_simulation_gray_scott(N, num_steps, dt, dx, Du, Dv, f, k, noise_level):
     Returns:
         tuple: Final concentration fields U and V.
     """
-    u, v = initialize_grid_gray_scott(N)
-    u_final, v_final = update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k, noise_level)
+    u, v = initialize_grid_gray_scott(N, noise_level)
+    u_final, v_final = update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k)
 
     assert u_final.shape == (N, N) and v_final.shape == (N, N), "Final output must have shape (N, N)."
 

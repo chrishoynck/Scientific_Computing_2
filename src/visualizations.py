@@ -354,7 +354,7 @@ def plot_final_gray_scott(u_final_list, param_set, N, output_dir, plot_number):
 
     # iterate over parameter sets
     for idx, (ax, u_final, param_set) in enumerate(zip(axs, u_final_list, param_set)):
-        img = ax.imshow(u_final, cmap=cmap, origin="lower", vmin=0.5, vmax=1, extent=[0, N, 0, N])
+        img = ax.imshow(u_final, cmap=cmap, origin="lower", vmin=0.2, vmax=1, extent=[0, N, 0, N])
         ax.set_title(r"$f$: " + f"{param_set[0]:.3f}, " + r"$k$: " + f"{param_set[1]:.3f}", fontsize=10)
 
     # y-axis (labels and ticks)

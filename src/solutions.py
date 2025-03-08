@@ -435,9 +435,6 @@ def monte_carlo_dla(N, p_join, cluster_length, animation=False):
             current_walkers, cluster_positions, N, p_join
         )
 
-        if len(cluster_positions) % 50 == 0:
-            print("Number of cluster cells:", len(cluster_positions))
-
         if prev_len == len(cluster_positions):
             no_update += 1
         else:
@@ -466,7 +463,7 @@ def monte_carlo_dla(N, p_join, cluster_length, animation=False):
         for r, c in cluster_positions:
             grid[r, c] = 1
 
-        if (animation and len(cluster_positions) % 50 == 0) or (
+        if (animation and len(cluster_positions) % 300 == 0) or (
             animation and len(cluster_positions) < 750
         ):
             all_grids.append(grid)
@@ -715,19 +712,3 @@ def run_simulation_gray_scott(N, num_steps, dt, dx, Du, Dv, f, k, noise_level):
     )
 
     return u_final, v_final
-
-
-# N = 100
-# p_join = 1.0
-# cluster_length = 750
-# animation = True
-
-# all_grids = monte_carlo_dla(N, p_join, cluster_length, animation)
-
-# # Save the final grid to a file
-# with open("data/dla_final_grid.pkl", "w") as f:
-#     pkl.dump(all_grids, f)
-
-# animation = visualizations.animate_mc_dla(all_grids)
-
-# HTML(animation.to_jshtml())

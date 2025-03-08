@@ -263,19 +263,25 @@ def animate_mc_dla(all_grids):
         matplotlib.animation.FuncAnimation: The animation object representing the DLA simulation animation.
     """
 
+    colors = ["#440154", "yellow", "#4A90E2"]
+    cmap = ListedColormap(colors)
+
     fig, ax = plt.subplots()
-    img = ax.imshow(all_grids[0], cmap="viridis", origin="lower")
+    fig.suptitle("DLA using Monte Carlo Simulations", fontsize=16)
+    img = ax.imshow(all_grids[0], cmap=cmap, origin="lower")
+
+    skip = 5
 
     def update(frame):
         img.set_data(all_grids[frame])
-        ax.set_title(f"Snapchat {frame} (step {frame * 10})")
+        ax.set_title(f"Step {frame * skip}")
 
     anim = FuncAnimation(
-        fig, update, frames=range(len(all_grids)), blit=False, interval=16
+        fig, update, frames=range(0, len(all_grids), skip), blit=False, interval=5
     )
-    anim.save("plots/animation_random_walker.gif", writer="pillow", dpi=300)
-    plt.close(fig)
+    plt.close()
 
+    anim.save("plots/animation_random_walker.gif", writer="pillow", dpi=100)
     return anim
 
 

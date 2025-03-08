@@ -56,16 +56,19 @@ def plot_simulation_without_animation(grid, N, object_grid):
     plt.show()
 
 
+
 def animate_1a(
-    gridd,
-    stencill,
-    object_gridd,
+    gridds,
+    stencills,
+    object_gridds,
     grid_indices,
-    eta,
+    etas,
     seedje,
-    sr_val,
+    tol,
+    maxiters,
+    omega_opts,
     itertjes=1500,
-    interval=0.7,
+    interval=0.5,
 ):
     """
     Generates and saves an animation of a 2D Diffusion-Limited Aggregation (DLA) process.
@@ -78,51 +81,84 @@ def animate_1a(
         stencill (numpy.ndarray): Stencil marking valid growth candidate locations.
         object_gridd (numpy.ndarray): 2D grid indicating object placements.
         grid_indices (numpy.ndarray): Flattened indices of the grid used for random selection.
-        eta (float): Growth parameter controlling aggregation probability.
+        etas (float): Growth parameter controlling aggregation probability.
         seedje (int): makes this implementation reproducible.
         sr_val (tuple): Parameters for the SOR update step.
         interval (int, optional): Frame interval in milliseconds (default: 50).
     """
-    fig, axs = plt.subplots(figsize=(4.5, 4.5))
+
+    fig, axs = plt.subplots(2, 3, figsize=(5.9, 4.3), sharex=True, sharey=True)
+    fig.suptitle(r" Animation DLA for Different $\eta$ Values (Frame 0)" )
+    axs = axs.flatten()
+    axs[-1].set_visible(False)
+
 
     # create colormaps and initial maps
     lilac_purple_cmap = LinearSegmentedColormap.from_list(
         "LilacPurple", ["#440154", "#FFFFFF"]
     )
-    img = axs.imshow(gridd, cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1])
-    plt.colorbar(img, ax=axs, label="Concentration", shrink=0.8)
+    eta_string = r"$\eta: $"
+    
     object_cmap = mcolors.ListedColormap(["none", "yellow"])  # Only one color, yellow
-    object_img = axs.imshow(
-        object_gridd, cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1]
-    )
+    # Store image references for each subplot
+    imgs = []
+    object_imgs = []
 
-    axs.set_title("2D Diffusion Simulation")
+    for i in range(5):
+        img = axs[i].imshow(gridds[i], cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1])
+        object_img = axs[i].imshow(
+            object_gridds[i], cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1]
+        )
+        imgs.append(img)
+        object_imgs.append(object_img)  # Store objects in lists
+        axs[i].set_title(eta_string + f"{etas[i]}")
+        if i > 1:
+            axs[i].set_xlabel("x")
 
+    # set proper ticks and labels
+    axs[2].xaxis.set_tick_params(which="both", labelbottom=True)
+    axs[0].set_ylabel("y")
+    axs[3].set_ylabel("y")
+
+    cbar_ax = fig.add_axes([0.88, 0.09, 0.02, 0.7])  # [left, bottom, width, height]
+    fig.colorbar(img, cax=cbar_ax, label="Concentration")
+    plt.tight_layout(rect=[0, 0, 0.88, 1])
+    plt.subplots_adjust(wspace=0.12, hspace=0.2)
     # update grid and viusalize
     def animate(frame):
-        nonlocal gridd, stencill, object_gridd, seedje
+        nonlocal gridds, stencills, object_gridds, seedje
         seedje += frame
-        gridd, object_gridd, stencill, _ = solutions.perform_update_ADL(
-            gridd, object_gridd, stencill, grid_indices, eta, seedje, sr_val
-        )
 
-        img.set_data(gridd)
-        object_img.set_data(object_gridd)
-        axs.set_title(f"DLA (η: {eta}) (Step: {frame:.3g})")
+        for i in range(5):
+            # generate solution to new updated grid
+            sr_val = (tol, maxiters, omega_opts[etas[i]])
+            gridd, object_gridd, stencill, _ = solutions.perform_update_ADL(
+                gridds[i], object_gridds[i], stencills[i], grid_indices, etas[i], seedje, sr_val
+            )
+            #update new grids
+            gridds[i] = gridd
+            stencills[i] = stencill
+            object_gridds[i] = object_gridd
 
+            imgs[i].set_data(gridd)
+            object_imgs[i].set_data(object_gridd)
+            
+        # axs[i].set_title(f"DLA (η: {etas[i]}) (Step: {frame:.3g})")
+        fig.suptitle(r" Animation DLA for Different $\eta$ Values " + f"(Frame {frame})" )
+        
+        # do a update once in a while
         if frame % 100 == 0:
             print(f"finished first {frame} frames")
-        return img, object_img
+        return imgs, object_imgs
 
     # Create animation
     animation = FuncAnimation(
         fig, animate, frames=itertjes, interval=interval, blit=False
     )
 
-    animation.save(f"plots/2D_diffusion_p_{eta}.gif", writer="ffmeg", fps=50)
+    animation.save("plots/2D_diffusion.gif", writer="ffmeg", fps=50)
     plt.close(fig)
     return animation
-
 
 def plot_omega_vs_iterations(omegas, all_iters):
     """
@@ -146,8 +182,6 @@ def plot_omega_vs_iterations(omegas, all_iters):
         omega_iters_matrix = np.array(
             [[run[omega] for omega in omegas] for run in all_omega_iters]
         )
-
-        print(np.shape(omega_iters_matrix))
 
         # Compute mean and variance within each run
         mean_within_run = np.mean(omega_iters_matrix, axis=2)
@@ -211,7 +245,7 @@ def plot_five_DLA(gridjes, etas):
     assert len(etas) == 5, (
         f"The setup of this plot is for 5 different eta values, not {len(etas)}"
     )
-    fig, axs = plt.subplots(2, 3, figsize=(5.2, 4), sharex=True, sharey=True)
+    fig, axs = plt.subplots(2, 3, figsize=(4.4, 3.4), sharex=True, sharey=True)
     fig.suptitle(r"DLA Process for Different $\eta$ Values ")
     axs = axs.flatten()
 
@@ -226,11 +260,14 @@ def plot_five_DLA(gridjes, etas):
     for i, e in enumerate(etas):
         gridd, object_gridd = gridjes[e]
         img = axs[i].imshow(
-            gridd, cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1]
+            gridd, cmap=lilac_purple_cmap, origin="lower", extent=[1, 0, 1, 0]
         )
         axs[i].imshow(
-            object_gridd, cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1]
+            object_gridd, cmap=object_cmap, origin="lower", extent=[1, 0, 1, 0]
         )
+
+        axs[i].invert_xaxis()
+        axs[i].invert_yaxis()
         axs[i].set_title(r"$\eta:$" + f" {e}")
         if i > 1:
             axs[i].set_xlabel("x")
@@ -245,10 +282,10 @@ def plot_five_DLA(gridjes, etas):
     fig.colorbar(img, cax=cbar_ax, label="Concentration", shrink=0.8)
 
     plt.tight_layout(rect=[0, 0, 0.93, 1])
-    plt.subplots_adjust(wspace=0.22, hspace=0.09)
+    # plt.subplots_adjust(wspace=0.22, hspace=0.09)
+    plt.subplots_adjust(wspace=0.22, hspace=0.2)
     plt.savefig("plots/DLA_snapshots.png", dpi=300, bbox_inches="tight")
     plt.show()
-
 
 def animate_mc_dla(all_grids):
     """

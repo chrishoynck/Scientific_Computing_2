@@ -3,7 +3,8 @@ import random as random
 import numpy as np
 from numba import njit, prange
 from scipy.ndimage import binary_dilation
-
+import os
+import pickle
 
 def place_objects(N, size_object=1):
     """
@@ -70,6 +71,44 @@ def save_grid_to_file(grid, filename="data/grid_output.txt"):
 
 def load_grid_from_file(filename="data/grid_output.txt"):
     return np.loadtxt(filename)  # Loads the 2D array back
+
+def write_concentration_DLA(gridjes, filename="gridjes.pkl"):
+    """
+    Saves concentration grids to a pickle file.
+
+    Parameters:
+    gridjes (dict): Dictionary mapping each η value to a tuple (grid, object_grid), where:
+        - grid (numpy.ndarray): 2D array representing concentration values.
+        - object_grid (numpy.ndarray): 2D array indicating object placements.
+    filename (str): Name of the pickle file to save. Default is "gridjes.pkl".
+    """
+    complete_dir = "data/DLA_concentrations"
+    os.makedirs(complete_dir, exist_ok=True)  # This will create the folder if it doesn't exist.
+
+    file_path = os.path.join(complete_dir, filename)
+    assert os.path.exists(complete_dir), f"{complete_dir} is not a valid directory"
+    with open(file_path, "wb") as f:
+        pickle.dump(gridjes, f)
+    print(f"grids saved to {complete_dir}")
+
+def read_in_concentration_DLA(filename="gridjes.pkl"):
+    """
+    Loads concentration grids from a pickle file.
+
+    Parameters:
+    filename (str): Name of the pickle file to load. Default is "gridjes.pkl".
+
+    Returns:
+    dict: Dictionary mapping each η value to a tuple (grid, object_grid), where:
+        - grid (numpy.ndarray): 2D array representing concentration values.
+        - object_grid (numpy.ndarray): 2D array indicating object placements.
+    """
+    complete_dir = f"data/DLA_concentrations/{filename}"
+    assert os.path.exists(complete_dir), f"{complete_dir} is not a valid directory"
+    with open(complete_dir, "rb") as f:
+        gridjes_loaded = pickle.load(f)
+    return gridjes_loaded
+
 
 
 def initialize_grid(N, object_grid):

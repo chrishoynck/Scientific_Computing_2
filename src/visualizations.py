@@ -281,7 +281,7 @@ def animate_mc_dla(all_grids):
     )
     plt.close()
 
-    # anim.save("plots/animation_random_walker.gif", writer="pillow", dpi=300)
+    anim.save("plots/animation_random_walker.gif", writer="pillow", dpi=100)
     return anim
 
 

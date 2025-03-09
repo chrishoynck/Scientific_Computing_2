@@ -51,7 +51,6 @@ def laplace(grid, dx):
     Returns:
         numpy.ndarray: The discrete Laplacian of the input grid.
     """
-    assert isinstance(dx, (int, float)) and dx > 0, "Grid spacing dx must be a positive number."
     
     N = grid.shape[0]
     laplace_grid = np.zeros_like(grid)

@@ -1,9 +1,11 @@
-import numpy as np
-from numba import njit, prange
-from scipy.ndimage import binary_dilation
 import os
 import pickle
 import time
+
+import numpy as np
+from numba import njit, prange
+from scipy.ndimage import binary_dilation
+
 
 def place_objects(N, size_object=1):
     """
@@ -71,6 +73,7 @@ def save_grid_to_file(grid, filename="data/grid_output.txt"):
 def load_grid_from_file(filename="data/grid_output.txt"):
     return np.loadtxt(filename)  # Loads the 2D array back
 
+
 def write_concentration_DLA(gridjes, filename="gridjes.pkl"):
     """
     Saves concentration grids to a pickle file.
@@ -82,13 +85,16 @@ def write_concentration_DLA(gridjes, filename="gridjes.pkl"):
     filename (str): Name of the pickle file to save. Default is "gridjes.pkl".
     """
     complete_dir = "data/DLA_concentrations"
-    os.makedirs(complete_dir, exist_ok=True)  # This will create the folder if it doesn't exist.
+    os.makedirs(
+        complete_dir, exist_ok=True
+    )  # This will create the folder if it doesn't exist.
 
     file_path = os.path.join(complete_dir, filename)
     assert os.path.exists(complete_dir), f"{complete_dir} is not a valid directory"
     with open(file_path, "wb") as f:
         pickle.dump(gridjes, f)
     print(f"grids saved to {complete_dir}")
+
 
 def read_in_concentration_DLA(filename="gridjes.pkl"):
     """
@@ -107,7 +113,6 @@ def read_in_concentration_DLA(filename="gridjes.pkl"):
     with open(complete_dir, "rb") as f:
         gridjes_loaded = pickle.load(f)
     return gridjes_loaded
-
 
 
 def initialize_grid(N, object_grid):
@@ -174,8 +179,9 @@ def empty_object_places(grid, stenciltje, object_grid, eta):
 
     return emptied_grid.flatten()
 
+
 @njit
-def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
+def sequential_SOR(grid, tol, max_iters, omega, object_grid=None):
     """
     Solves using the Successive Over Relaxtion (SOR) iteration method.
 
@@ -192,7 +198,7 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
         int: Number of iterations required to reach convergence.
         numpy.ndarray: Final grid after iterations.
     """
-    N= len(grid)
+    N = len(grid)
     assert N > 1, (
         f"bord is {N}x{N}, but needs to be at least 2*2 for this diffusion implementation"
     )
@@ -201,36 +207,35 @@ def sequential_SOR(grid,tol, max_iters, omega, object_grid=None):
     # c = initialize_grid(N)
 
     iter = 0
-    delta = float("inf")
+    delta = np.inf
 
     # while not converged
     while delta > tol and iter < max_iters:
         delta = 0
 
-        
         # loop over all cells in the grid (except for y = 0, y=N)
-        for i in range(1, N-1):
-            for j in range(1, N-1):
+        for i in range(1, N - 1):
+            for j in range(1, N - 1):
                 if object_grid is not None and object_grid[(i, j)]:
                     c_next = 0
                     continue
                 # retrieve all necessary values (also regarding wrap-around)
                 south = grid[i - 1, j] if i > 0 else 1
                 north = grid[i + 1, j] if i < N - 1 else 0
-                west = grid[i, j - 1] 
-                east = grid[i, j + 1] 
+                west = grid[i, j - 1]
+                east = grid[i, j + 1]
 
                 # SOR update equation
-                c_next = (omega / 4) * (west + east + south + north) + (1 - omega) * grid[
-                    i, j
-                ]
+                c_next = (omega / 4) * (west + east + south + north) + (
+                    1 - omega
+                ) * grid[i, j]
 
                 # check for convergence
                 delta = max(delta, abs(c_next - grid[i, j]))
                 grid[i, j] = c_next
 
         # borders, derivative is 0 at the borders
-        grid[:, N-1] = grid[:, N-2]
+        grid[:, N - 1] = grid[:, N - 2]
         grid[:, 0] = grid[:, 1]
         # grid[object_grid==1] = 0
         iter += 1
@@ -262,7 +267,7 @@ def parallel_SOR(grid, tol, max_iters, omega, object_grid=None):
     )
 
     iter = 0
-    delta = float("inf")
+    delta = np.inf
 
     # while not converged
     while delta > tol and iter < max_iters:
@@ -283,8 +288,8 @@ def parallel_SOR(grid, tol, max_iters, omega, object_grid=None):
                 # retrieve all necessary values (also regarding wrap-around)
                 south = grid[i - 1, j] if i > 0 else 1
                 north = grid[i + 1, j] if i < N - 1 else 0
-                west = grid[i, j - 1]  
-                east = grid[i, j + 1]  
+                west = grid[i, j - 1]
+                east = grid[i, j + 1]
 
                 # SOR update equation
                 c_next = (omega / 4) * (west + east + south + north) + (
@@ -310,8 +315,8 @@ def parallel_SOR(grid, tol, max_iters, omega, object_grid=None):
                 # retrieve all necessary values (also regarding wrap-around)
                 south = grid[i - 1, j] if i > 1 else 1
                 north = grid[i + 1, j] if i < N - 2 else 0
-                west = grid[i, j - 1] 
-                east = grid[i, j + 1] 
+                west = grid[i, j - 1]
+                east = grid[i, j + 1]
 
                 # SOR update equation
                 c_next = (omega / 4) * (west + east + south + north) + (
@@ -331,7 +336,14 @@ def parallel_SOR(grid, tol, max_iters, omega, object_grid=None):
 
 
 def perform_update_ADL(
-    gridje, object_gridje, stenciltje, grid_indices, eta, seedje, SOR_pars, sequential=False
+    gridje,
+    object_gridje,
+    stenciltje,
+    grid_indices,
+    eta,
+    seedje,
+    SOR_pars,
+    sequential=False,
 ):
     """
     Performs a single update step in the Aggregation Diffusion Limited (ADL) process.
@@ -363,7 +375,7 @@ def perform_update_ADL(
     # do SOR convergence for this grid
     if sequential:
         iters, gridje = sequential_SOR(gridje, tol, maxiters, omega, object_gridje)
-    else: 
+    else:
         iters, gridje = parallel_SOR(gridje, tol, maxiters, omega, object_gridje)
 
     assert iters < maxiters, f"No convergence for SOR, omega: {omega}"
@@ -474,8 +486,7 @@ def optimize_omega_DLA(
     return eta_list, grid_list, eta_iters
 
 
-
-def speedup_par_seq(grid, object_grid, sr_val, grid_indices, clus_size, etatje =1):
+def speedup_par_seq(grid, object_grid, sr_val, grid_indices, clus_size, etatje=1):
     """
     Compares execution time of parallel and sequential implementations of a 2D update process.
 
@@ -504,28 +515,49 @@ def speedup_par_seq(grid, object_grid, sr_val, grid_indices, clus_size, etatje =
 
     start_parallel = time.time()
     for _ in range(clus_size):
-        seedje +=1
+        seedje += 1
         parallel_grid, object_grid_par, stencil_parallel, itertjes = perform_update_ADL(
-                    parallel_grid, object_grid_par, stencil_parallel, grid_indices, etatje, seedje, sr_val
-                )
-        total_iters += itertjes 
+            parallel_grid,
+            object_grid_par,
+            stencil_parallel,
+            grid_indices,
+            etatje,
+            seedje,
+            sr_val,
+        )
+        total_iters += itertjes
     end_parallel = time.time()
-    print(f"The total number of SOR iterations for the parallel implementation is {total_iters}")
+    print(
+        f"The total number of SOR iterations for the parallel implementation is {total_iters}"
+    )
 
     total_iters = 0
     start_sequential = time.time()
-    seedje=22
+    seedje = 22
     for _ in range(clus_size):
-        seedje +=1
+        seedje += 1
         sequential_grid, object_grid_seq, stencil_seq, _ = perform_update_ADL(
-                    sequential_grid, object_grid_seq, stencil_seq, grid_indices, etatje, seedje, sr_val, True
-                )
-        total_iters +=itertjes
+            sequential_grid,
+            object_grid_seq,
+            stencil_seq,
+            grid_indices,
+            etatje,
+            seedje,
+            sr_val,
+            True,
+        )
+        total_iters += itertjes
     end_sequential = time.time()
-    print(f"The total number of SOR iterations for the parallel implementation is {total_iters}")
-
+    print(
+        f"The total number of SOR iterations for the parallel implementation is {total_iters}"
+    )
 
     parallel_time = end_parallel - start_parallel
     sequential_time = end_sequential - start_sequential
 
-    return parallel_time, sequential_time, (parallel_grid, object_grid_par), (sequential_grid, object_grid_seq)
+    return (
+        parallel_time,
+        sequential_time,
+        (parallel_grid, object_grid_par),
+        (sequential_grid, object_grid_seq),
+    )

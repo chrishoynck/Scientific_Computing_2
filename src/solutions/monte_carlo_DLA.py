@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def initialize_grid_with_cluster(N, cluster_row=0, cluster_col=15):
     """
     Initialize a square grid and set a cluster at a specified offset.
@@ -17,7 +18,7 @@ def initialize_grid_with_cluster(N, cluster_row=0, cluster_col=15):
     """
 
     grid = np.zeros((N, N))
-    midpoint = int(N/2)
+    midpoint = int(N / 2)
     # Set the initial starting cluster as a single cell in the middle of the bottom row
     cluster_positions = [
         (0, midpoint),
@@ -56,9 +57,11 @@ def monte_carlo_dla(N, p_join, cluster_length, seedje, animation=False):
     current_walkers = []
     no_update = 0
     while len(cluster_positions) < cluster_length:
-
+        seedje += 1
         # place walkers on the grid, starting one new walker at the top every time-step
-        new_walker = generating_random_walkers(cluster_positions, N, current_walkers, seedje)
+        new_walker = generating_random_walkers(
+            cluster_positions, N, current_walkers, seedje
+        )
         if new_walker is not None:
             current_walkers.append(new_walker)
 
@@ -126,7 +129,7 @@ def generating_random_walkers(cluster_positions, N, current_walkers, seedje):
     """
 
     np.random.seed(seedje)
-    
+
     # generate random int within domain
     col_position = np.random.randint(0, N - 1)
 
@@ -193,7 +196,7 @@ def moving_random_walkers(current_walkers, cluster_positions, N, p_join, seedje)
 
         # determine next direction
         next_r, next_c = directions[np.random.randint(len(directions))]
-        
+
         # Removes walker if it goes outside the grid on the top or at the bottom
         if next_r < 0 or next_r >= N:
             new_col = np.random.randint(0, N)
@@ -219,7 +222,6 @@ def moving_random_walkers(current_walkers, cluster_positions, N, p_join, seedje)
             continue
 
         if adjacent_to_cluster(next_r, next_c, cluster_positions):
-
             # see if walker joins cluster, using the probability to react parameter
             if np.random.rand() < p_join:
                 cluster_positions.append((next_r, next_c))

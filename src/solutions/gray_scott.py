@@ -1,19 +1,22 @@
 import numpy as np
 from numba import njit, prange
 
-def initialize_grid_gray_scott(N, noise_level):
+def initialize_grid_gray_scott(N, noise_level, seedje):
     """
     Initializes the U and V concentration fields for the Gray-Scott model.
 
     Parameters:
         N (int): Grid size (N x N).
         noise_level (float): Standard deviation of Gaussian noise to be added to the initial conditions.
+        seedje (int): Random seed for reproducibility.
 
     Returns:
         tuple: Two 2D numpy arrays representing the initial concentration fields U and V.
     """
     assert isinstance(N, int) and N > 0, "Grid size N must be a positive integer."
     
+    np.random.seed(seedje)
+
     u = np.ones((N, N)) * 0.5  # initialize u with 0.5 everywhere
     v = np.zeros((N, N))  # initialize v with 0.0
 
@@ -91,15 +94,7 @@ def update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k):
         Lu = laplace(u, dx)
         Lv = laplace(v, dx)
 
-        # smallest_value = np.finfo(np.float64).tiny  # Smallest positive float
-        # v = np.maximum(v, smallest_value)
-        # u = np.maximum(u, smallest_value)
-
         uvv = u * np.square(v)
-
-        # uvv = u * v**2
-        # du_dt = Du * Lu - uvv + f * (1 - u) + noise_level * np.random.randn(N, N)
-        # dv_dt = Dv * Lv + uvv - (f + k) * v + noise_level * np.random.randn(N, N)
         du_dt = Du * Lu - uvv + f * (1 - u)
         dv_dt = Dv * Lv + uvv - (f + k) * v
         
@@ -110,7 +105,7 @@ def update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k):
 
     return u, v
 
-def run_simulation_gray_scott(N, num_steps, dt, dx, Du, Dv, f, k, noise_level):
+def run_simulation_gray_scott(N, num_steps, dt, dx, Du, Dv, f, k, noise_level, seedje):
     """
     Runs the Gray-Scott reaction-diffusion simulation.
     
@@ -128,7 +123,7 @@ def run_simulation_gray_scott(N, num_steps, dt, dx, Du, Dv, f, k, noise_level):
     Returns:
         tuple: Final concentration fields U and V.
     """
-    u, v = initialize_grid_gray_scott(N, noise_level)
+    u, v = initialize_grid_gray_scott(N, noise_level, seedje)
     u_final, v_final = update_gray_scott(u, v, num_steps, N, dt, dx, Du, Dv, f, k)
 
     assert u_final.shape == (N, N) and v_final.shape == (N, N), "Final output must have shape (N, N)."

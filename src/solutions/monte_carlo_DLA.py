@@ -32,7 +32,7 @@ def initialize_grid_with_cluster(N, cluster_row=0, cluster_col=15):
     return grid, cluster_positions
 
 
-def monte_carlo_dla(N, p_join, cluster_length, animation=False):
+def monte_carlo_dla(N, p_join, cluster_length, seedje, animation=False):
     """
     Simulate a Diffusion-Limited Aggregation (DLA) process using a Monte Carlo approach.
 
@@ -40,6 +40,7 @@ def monte_carlo_dla(N, p_join, cluster_length, animation=False):
         N (int): The size of the square grid (N x N).
         p_join (float): The probability that a random walker will join the cluster upon contact.
         cluster_length (int): The target number of cells in the cluster at which to stop the simulation.
+        seedje (int): Random seed for reproducibility.
         animation (bool, optional): If True, intermediate grid states are stored for creating an animation.
                                     If False, only the final grid state is returned. Defaults to False.
 
@@ -57,13 +58,13 @@ def monte_carlo_dla(N, p_join, cluster_length, animation=False):
     while len(cluster_positions) < cluster_length:
 
         # place walkers on the grid, starting one new walker at the top every time-step
-        new_walker = generating_random_walkers(cluster_positions, N, current_walkers)
+        new_walker = generating_random_walkers(cluster_positions, N, current_walkers, seedje)
         if new_walker is not None:
             current_walkers.append(new_walker)
 
         prev_len = len(cluster_positions)
         current_walkers, cluster_positions = moving_random_walkers(
-            current_walkers, cluster_positions, N, p_join
+            current_walkers, cluster_positions, N, p_join, seedje
         )
         # for check if structure is still developing
         if prev_len == len(cluster_positions):
@@ -109,7 +110,7 @@ def monte_carlo_dla(N, p_join, cluster_length, animation=False):
     return all_grids
 
 
-def generating_random_walkers(cluster_positions, N, current_walkers):
+def generating_random_walkers(cluster_positions, N, current_walkers, seedje):
     """
     Create a random walker at the top of the grid if the selected position is free.
 
@@ -117,11 +118,15 @@ def generating_random_walkers(cluster_positions, N, current_walkers):
         cluster_positions (list of tuple): A list of (row, column) tuples representing positions that are part of the cluster.
         N (int): The size of the grid (the grid is assumed to be N x N).
         current_walkers (list of tuple): A list of (row, column) tuples representing the positions of active walkers.
+        seedje (int): Random seed for reproducibility.
 
     Returns:
         tuple or None: The (row, column) position for the new walker if the chosen location is unoccupied;
                        otherwise, returns None.
     """
+
+    np.random.seed(seedje)
+    
     # generate random int within domain
     col_position = np.random.randint(0, N - 1)
 
@@ -154,7 +159,7 @@ def adjacent_to_cluster(r, c, cluster_positions):
     return any(neighbor in cluster_positions for neighbor in neighbors)
 
 
-def moving_random_walkers(current_walkers, cluster_positions, N, p_join):
+def moving_random_walkers(current_walkers, cluster_positions, N, p_join, seedje):
     """
     Move random walkers and update cluster positions based on a joining probability.
 
@@ -163,6 +168,7 @@ def moving_random_walkers(current_walkers, cluster_positions, N, p_join):
         cluster_positions (list of tuple): A list of (row, column) tuples representing the positions of cells in the cluster.
         N (int): The size of the grid (i.e., the grid is N x N).
         p_join (float): The probability (between 0 and 1) that a walker adjacent to the cluster will join it.
+        seedje (int): Random seed for reproducibility.
 
     Returns:
         tuple: A tuple containing:
@@ -173,6 +179,8 @@ def moving_random_walkers(current_walkers, cluster_positions, N, p_join):
         - If the next move places a walker outside the vertical grid boundaries, the walker is removed.
         - For horizontal moves, periodic boundary conditions are applied so that a walker exiting one side reappears on the opposite side.
     """
+
+    np.random.seed(seedje)
 
     new_walkers = []
 

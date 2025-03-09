@@ -4,9 +4,11 @@ import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import src.solutions as solutions
 from matplotlib.animation import FuncAnimation
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
+
+# concentration based DLA solution
+import src.solutions.concentrations_DLA as solutions_DLA
 
 
 def visualize_object_grid(obj_grid, stage):
@@ -132,7 +134,7 @@ def animate_1a(
         for i in range(5):
             # generate solution to new updated grid
             sr_val = (tol, maxiters, omega_opts[etas[i]])
-            gridd, object_gridd, stencill, _ = solutions.perform_update_ADL(
+            gridd, object_gridd, stencill, _ = solutions_DLA.perform_update_ADL(
                 gridds[i], object_gridds[i], stencills[i], grid_indices, etas[i], seedje, sr_val
             )
             #update new grids
@@ -144,7 +146,7 @@ def animate_1a(
             object_imgs[i].set_data(object_gridd)
             
         # axs[i].set_title(f"DLA (η: {etas[i]}) (Step: {frame:.3g})")
-        fig.suptitle(r" Animation DLA for Different $\eta$ Values " + f"(Frame {frame})" )
+        fig.suptitle(r" Animation DLA for Different $\eta$ Values " + f"(Step: {frame})" )
         
         # do a update once in a while
         if frame % 100 == 0:
@@ -303,18 +305,35 @@ def animate_mc_dla(all_grids):
     colors = ["#440154", "yellow", "#4A90E2"]
     cmap = ListedColormap(colors)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(7,4))
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     fig.suptitle("DLA using Monte Carlo Simulations", fontsize=16)
+    legend_patches = [
+        mpatches.Patch(color=colors[0], label="Empty Cells"),
+        mpatches.Patch(color=colors[1], label="Cluster Cells"),
+        mpatches.Patch(color=colors[2], label="Random Walkers"),
+    ]
+
+    fig.legend(
+        handles=legend_patches,
+        loc="lower right",
+        bbox_to_anchor=(0.97, 0.19),
+        fontsize=8,
+        title="Categories",
+        markerscale=0.8,
+    )
     img = ax.imshow(all_grids[0], cmap=cmap, origin="lower")
 
     skip = 5
-
+    
+    # retrieving data from all the frames
     def update(frame):
         img.set_data(all_grids[frame])
         ax.set_title(f"Step {frame * skip}")
 
     anim = FuncAnimation(
-        fig, update, frames=range(0, len(all_grids), skip), blit=False, interval=5
+        fig, update, frames=range(0, len(all_grids), skip), blit=False, interval=0.5
     )
     plt.close()
 
@@ -390,7 +409,7 @@ def visualize_for_different_probs(grids, probs_join):
     plt.show()
 
 
-def plot_final_gray_scott(u_final_list, param_sets, N, output_dir="plots"):
+def plot_final_gray_scott(u_final_list, param_sets, N, output_dir="plots", plot_number= 1):
     """
     Generates and saves a 2x2 grid of final concentration fields from the Gray-Scott model.
 
@@ -444,6 +463,6 @@ def plot_final_gray_scott(u_final_list, param_sets, N, output_dir="plots"):
     cbar = fig.colorbar(img, cax=cbar_ax, shrink=0.8)
     cbar.set_label("Concentration of U", fontsize=12)
 
-    frame_path = f"{output_dir}/gray_scott_multi.png"
+    frame_path = f"{output_dir}/gray_scott_plots_{plot_number}.png"
     plt.savefig(frame_path, bbox_inches="tight", dpi=300)
     plt.show()

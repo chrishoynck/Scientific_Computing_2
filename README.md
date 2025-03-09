@@ -1,3 +1,4 @@
+
 # **Pattern Formation and Aggregation in DLA & Gray-Scott**
 By Bart Koedijk (15756785), Charlotte Koolen (15888592), & Chris Hoynck van Papendrecht (15340791)
 
@@ -13,8 +14,10 @@ This repository contains numerical experiments and implementations for simulatin
 
 ## **Main Components**
 - **`main.ipynb`** – A Jupyter Notebook demonstrating the setup, simulation steps, and visualizations for both DLA and Gray-Scott models.
-- **`src/solutions.py`** – Core implementations of the DLA (concentration-based and Monte Carlo) and Gray-Scott simulations.
-- **`src/visualizations.py`** – Plotting utilities for visualizing cluster growth and reaction-diffusion patterns.
+- **`src/solutions/concentrations_DLA.py`** – Implementation of the concentration-based approach for DLA.
+- **`src/solutions/monte_carlo_DLA.py`** – Monte Carlo simulation of DLA using Brownian motion.
+- **`src/solutions/gray_scott.py`** – Gray-Scott reaction-diffusion model.
+- **`src/solutions/visualizations.py`** – Plotting utilities for visualizing cluster growth and reaction-diffusion patterns.
 - **`data/`** – Stores output files (e.g., grid states) and any auxiliary data.
 - **`plots/`** – Directory for saving generated figures and animations.
 - **`README.md`** – This file, describing the project’s structure and usage.

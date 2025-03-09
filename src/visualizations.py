@@ -289,6 +289,56 @@ def plot_five_DLA(gridjes, etas):
     plt.savefig("plots/DLA_snapshots.png", dpi=300, bbox_inches="tight")
     plt.show()
 
+def plot_larger_DLA(gridjes, sizes):
+    """
+    Visualizes the evolution of a 2D DLA process at different η values.
+
+    Parameters:
+        gridjes (dict): Dictionary mapping each η value to a tuple (grid, object_grid), where:
+            - grid (numpy.ndarray): 2D array representing concentration values.
+            - object_grid (numpy.ndarray): 2D array indicating object placements.
+        etas (list of float): List of η values for which the diffusion snapshots will be plotted.
+
+    """
+    # plot setup
+    assert len(sizes) == 3, (
+        f"The setup of this plot is for 5 different eta values, not {len(sizes)}"
+    )
+    fig, axs = plt.subplots(1, 3, figsize=(4.4, 2.4), sharey=True)
+    fig.suptitle(r"DLA Process for Different Grid Sizes", y=0.9)
+    axs = axs.flatten()
+
+    # colormaps
+    lilac_purple_cmap = LinearSegmentedColormap.from_list(
+        "LilacPurple", ["#440154", "#FFFFFF"]
+    )
+    object_cmap = mcolors.ListedColormap(["none", "yellow"])  # Only one color, yellow
+
+    # Hide the last unused subplot
+    # axs[-1].set_visible(False)
+    for i, s in enumerate(sizes):
+        gridd, object_gridd = gridjes[i]
+        img = axs[i].imshow(
+            gridd, cmap=lilac_purple_cmap, origin="lower", extent=[1, 0, 1, 0]
+        )
+        axs[i].imshow(
+            object_gridd, cmap=object_cmap, origin="lower", extent=[1, 0, 1, 0]
+        )
+
+        axs[i].invert_xaxis()
+        axs[i].invert_yaxis()
+        axs[i].set_xlabel("x")
+        axs[i].set_title(f"{s}x{s}")
+
+    cbar_ax = fig.add_axes([0.92, 0.09, 0.02, 0.6])  # [left, bottom, width, height]
+    # fig.colorbar(im, cax=cbar_ax, label="Concentration")
+    fig.colorbar(img, cax=cbar_ax, label="Concentration", shrink=0.8)
+
+    plt.tight_layout(rect=[0, 0, 0.93, 1])
+    plt.subplots_adjust(wspace=0.22, hspace=0.2)
+    plt.savefig("plots/DLA_snapshots_size_difference.png", dpi=300, bbox_inches="tight")
+    plt.show()
+
 def animate_mc_dla(all_grids):
     """
     Animate the Monte Carlo Diffusion-Limited Aggregation (DLA) simulation.
@@ -455,5 +505,7 @@ def plot_final_gray_scott(u_final_list, param_set, N, output_dir, plot_number):
     cbar.set_label("Concentration of U", fontsize=12)
     
     frame_path = f"{output_dir}/gray_scott_plots_{plot_number}.png"
-    plt.savefig(frame_path, bbox_inches='tight', dpi=300)
+    plt.savefig(frame_path, bbox_inches="tight", dpi=300)
     plt.show()
+
+

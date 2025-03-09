@@ -435,8 +435,6 @@ def optimize_omega_DLA(
             all_iters_dict = dict()
             seedje += i
 
-            print(f"starting experimentation for run {i} ")
-
             # iterate over all omega values
             for j, omega in enumerate(omegas):
                 # use empty grid (initialized)

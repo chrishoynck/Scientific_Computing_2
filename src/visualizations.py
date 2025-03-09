@@ -4,11 +4,11 @@ import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FuncAnimation
-from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
 
 # concentration based DLA solution
 import src.solutions.concentrations_DLA as solutions_DLA
+from matplotlib.animation import FuncAnimation
+from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
 
 
 def visualize_object_grid(obj_grid, stage):
@@ -58,7 +58,6 @@ def plot_simulation_without_animation(grid, N, object_grid):
     plt.show()
 
 
-
 def animate_1a(
     gridds,
     stencills,
@@ -90,24 +89,25 @@ def animate_1a(
     """
 
     fig, axs = plt.subplots(2, 3, figsize=(5.9, 4.3), sharex=True, sharey=True)
-    fig.suptitle(r" Animation DLA for Different $\eta$ Values (Frame 0)" )
+    fig.suptitle(r" Animation DLA for Different $\eta$ Values (Frame 0)")
     axs = axs.flatten()
     axs[-1].set_visible(False)
-
 
     # create colormaps and initial maps
     lilac_purple_cmap = LinearSegmentedColormap.from_list(
         "LilacPurple", ["#440154", "#FFFFFF"]
     )
     eta_string = r"$\eta: $"
-    
+
     object_cmap = mcolors.ListedColormap(["none", "yellow"])  # Only one color, yellow
     # Store image references for each subplot
     imgs = []
     object_imgs = []
 
     for i in range(5):
-        img = axs[i].imshow(gridds[i], cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1])
+        img = axs[i].imshow(
+            gridds[i], cmap=lilac_purple_cmap, origin="lower", extent=[0, 1, 0, 1]
+        )
         object_img = axs[i].imshow(
             object_gridds[i], cmap=object_cmap, origin="lower", extent=[0, 1, 0, 1]
         )
@@ -126,6 +126,7 @@ def animate_1a(
     fig.colorbar(img, cax=cbar_ax, label="Concentration")
     plt.tight_layout(rect=[0, 0, 0.88, 1])
     plt.subplots_adjust(wspace=0.12, hspace=0.2)
+
     # update grid and viusalize
     def animate(frame):
         nonlocal gridds, stencills, object_gridds, seedje
@@ -135,22 +136,28 @@ def animate_1a(
             # generate solution to new updated grid
             sr_val = (tol, maxiters, omega_opts[etas[i]])
             gridd, object_gridd, stencill, _ = solutions_DLA.perform_update_ADL(
-                gridds[i], object_gridds[i], stencills[i], grid_indices, etas[i], seedje, sr_val
+                gridds[i],
+                object_gridds[i],
+                stencills[i],
+                grid_indices,
+                etas[i],
+                seedje,
+                sr_val,
             )
-            #update new grids
+            # update new grids
             gridds[i] = gridd
             stencills[i] = stencill
             object_gridds[i] = object_gridd
 
             imgs[i].set_data(gridd)
             object_imgs[i].set_data(object_gridd)
-            
+
         # axs[i].set_title(f"DLA (η: {etas[i]}) (Step: {frame:.3g})")
-        fig.suptitle(r" Animation DLA for Different $\eta$ Values " + f"(Step: {frame})" )
-        
+        fig.suptitle(
+            r" Animation DLA for Different $\eta$ Values " + f"(Step: {frame})"
+        )
+
         # do a update once in a while
-        if frame % 100 == 0:
-            print(f"finished first {frame} frames")
         return imgs, object_imgs
 
     # Create animation
@@ -161,6 +168,7 @@ def animate_1a(
     animation.save("plots/2D_diffusion.gif", writer="ffmeg", fps=50)
     plt.close(fig)
     return animation
+
 
 def plot_omega_vs_iterations(omegas, all_iters):
     """
@@ -289,6 +297,7 @@ def plot_five_DLA(gridjes, etas):
     plt.savefig("plots/DLA_snapshots.png", dpi=300, bbox_inches="tight")
     plt.show()
 
+
 def plot_larger_DLA(gridjes, sizes):
     """
     Visualizes the evolution of a 2D DLA process at different η values.
@@ -339,6 +348,7 @@ def plot_larger_DLA(gridjes, sizes):
     plt.savefig("plots/DLA_snapshots_size_difference.png", dpi=300, bbox_inches="tight")
     plt.show()
 
+
 def animate_mc_dla(all_grids):
     """
     Animate the Monte Carlo Diffusion-Limited Aggregation (DLA) simulation.
@@ -355,7 +365,7 @@ def animate_mc_dla(all_grids):
     colors = ["#440154", "yellow", "#4A90E2"]
     cmap = ListedColormap(colors)
 
-    fig, ax = plt.subplots(figsize=(7,4))
+    fig, ax = plt.subplots(figsize=(7, 4))
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     fig.suptitle("DLA using Monte Carlo Simulations", fontsize=16)
@@ -376,7 +386,7 @@ def animate_mc_dla(all_grids):
     img = ax.imshow(all_grids[0], cmap=cmap, origin="lower")
 
     skip = 5
-    
+
     # retrieving data from all the frames
     def update(frame):
         img.set_data(all_grids[frame])
@@ -461,51 +471,58 @@ def visualize_for_different_probs(grids, probs_join):
 
 def plot_final_gray_scott(u_final_list, param_set, N, output_dir, plot_number):
     """
-   Generates and saves a 2x2 grid of final concentration fields from the Gray-Scott model.
-    
-    Parameters:
-        u_final_list (list): List of 2D numpy arrays representing final U concentrations.
-        param_sets (list): List of (f, k) parameter tuples.
-        N (int): Grid size.
-        output_dir (string): Directory to save the output figure is 'plots'.
+    Generates and saves a 2x2 grid of final concentration fields from the Gray-Scott model.
+
+     Parameters:
+         u_final_list (list): List of 2D numpy arrays representing final U concentrations.
+         param_sets (list): List of (f, k) parameter tuples.
+         N (int): Grid size.
+         output_dir (string): Directory to save the output figure is 'plots'.
     """
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # colormap
-    cmap = LinearSegmentedColormap.from_list("custom_colormap", ["#440154", "#3b528b", "#fde725"], N=256)
+    cmap = LinearSegmentedColormap.from_list(
+        "custom_colormap", ["#440154", "#3b528b", "#fde725"], N=256
+    )
 
     fig, axs = plt.subplots(2, 2, figsize=(3.5, 3.9), sharex=True, sharey=True)
     fig.suptitle(r"Final U concentration for varying $f, k$")
-    axs = axs.flatten()  
+    axs = axs.flatten()
 
     # iterate over parameter sets
     for idx, (ax, u_final, param_set) in enumerate(zip(axs, u_final_list, param_set)):
-        img = ax.imshow(u_final, cmap=cmap, origin="lower", vmin=0.2, vmax=1, extent=[0, N, 0, N])
-        ax.set_title(r"$f$: " + f"{param_set[0]:.3f}, " + r"$k$: " + f"{param_set[1]:.3f}", fontsize=10)
+        img = ax.imshow(
+            u_final, cmap=cmap, origin="lower", vmin=0.2, vmax=1, extent=[0, N, 0, N]
+        )
+        ax.set_title(
+            r"$f$: " + f"{param_set[0]:.3f}, " + r"$k$: " + f"{param_set[1]:.3f}",
+            fontsize=10,
+        )
 
     # y-axis (labels and ticks)
     axs[0].set_ylabel("y")
     axs[2].set_ylabel("y")
-    axs[0].set_yticks([0, N//2, N])
-    axs[2].set_yticks([0, N//2, N])
+    axs[0].set_yticks([0, N // 2, N])
+    axs[2].set_yticks([0, N // 2, N])
 
     # x-axis (labels and ticks)
     axs[2].xaxis.set_tick_params(which="both", labelbottom=True)
     axs[3].xaxis.set_tick_params(which="both", labelbottom=True)
     axs[2].set_xlabel("x")
     axs[3].set_xlabel("x")
-    axs[2].set_xticks([0, N//2, N])
-    axs[3].set_xticks([0, N//2, N])
+    axs[2].set_xticks([0, N // 2, N])
+    axs[3].set_xticks([0, N // 2, N])
 
     plt.subplots_adjust(wspace=0.25, hspace=0.25)
 
     # colorbar
-    cbar_ax = fig.add_axes([0.95, 0.12, 0.03, 0.74]) # [<left>, <bottom>, <width>, <height>]
+    cbar_ax = fig.add_axes(
+        [0.95, 0.12, 0.03, 0.74]
+    )  # [<left>, <bottom>, <width>, <height>]
     cbar = fig.colorbar(img, cax=cbar_ax, shrink=0.8)
     cbar.set_label("Concentration of U", fontsize=12)
-    
+
     frame_path = f"{output_dir}/gray_scott_plots_{plot_number}.png"
     plt.savefig(frame_path, bbox_inches="tight", dpi=300)
     plt.show()
-
-

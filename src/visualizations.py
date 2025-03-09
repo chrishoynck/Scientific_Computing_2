@@ -409,60 +409,51 @@ def visualize_for_different_probs(grids, probs_join):
     plt.show()
 
 
-def plot_final_gray_scott(u_final_list, param_sets, N, output_dir="plots", plot_number= 1):
+def plot_final_gray_scott(u_final_list, param_set, N, output_dir, plot_number):
     """
-    Generates and saves a 2x2 grid of final concentration fields from the Gray-Scott model.
-
-     Parameters:
-         u_final_list (list): List of 2D numpy arrays representing final U concentrations.
-         param_sets (list): List of (f, k) parameter tuples.
-         N (int): Grid size.
-         output_dir (string): Directory to save the output figure is 'plots'.
+   Generates and saves a 2x2 grid of final concentration fields from the Gray-Scott model.
+    
+    Parameters:
+        u_final_list (list): List of 2D numpy arrays representing final U concentrations.
+        param_sets (list): List of (f, k) parameter tuples.
+        N (int): Grid size.
+        output_dir (string): Directory to save the output figure is 'plots'.
     """
     os.makedirs(output_dir, exist_ok=True)
-
+    
     # colormap
-    cmap = LinearSegmentedColormap.from_list(
-        "custom_colormap", ["#440154", "#3b528b", "#fde725"], N=256
-    )
+    cmap = LinearSegmentedColormap.from_list("custom_colormap", ["#440154", "#3b528b", "#fde725"], N=256)
 
     fig, axs = plt.subplots(2, 2, figsize=(3.5, 3.9), sharex=True, sharey=True)
     fig.suptitle(r"Final U concentration for varying $f, k$")
-    axs = axs.flatten()
+    axs = axs.flatten()  
 
     # iterate over parameter sets
-    for idx, (ax, u_final, param_set) in enumerate(zip(axs, u_final_list, param_sets)):
-        img = ax.imshow(
-            u_final, cmap=cmap, origin="lower", vmin=0.3, vmax=1, extent=[0, N, 0, N]
-        )
-        ax.set_title(
-            r"$f$: " + f"{param_set[0]:.3f}, " + r"$k$: " + f"{param_set[1]:.3f}",
-            fontsize=10,
-        )
+    for idx, (ax, u_final, param_set) in enumerate(zip(axs, u_final_list, param_set)):
+        img = ax.imshow(u_final, cmap=cmap, origin="lower", vmin=0.2, vmax=1, extent=[0, N, 0, N])
+        ax.set_title(r"$f$: " + f"{param_set[0]:.3f}, " + r"$k$: " + f"{param_set[1]:.3f}", fontsize=10)
 
     # y-axis (labels and ticks)
     axs[0].set_ylabel("y")
     axs[2].set_ylabel("y")
-    axs[0].set_yticks([0, N // 2, N])
-    axs[2].set_yticks([0, N // 2, N])
+    axs[0].set_yticks([0, N//2, N])
+    axs[2].set_yticks([0, N//2, N])
 
     # x-axis (labels and ticks)
     axs[2].xaxis.set_tick_params(which="both", labelbottom=True)
     axs[3].xaxis.set_tick_params(which="both", labelbottom=True)
     axs[2].set_xlabel("x")
     axs[3].set_xlabel("x")
-    axs[2].set_xticks([0, N // 2, N])
-    axs[3].set_xticks([0, N // 2, N])
+    axs[2].set_xticks([0, N//2, N])
+    axs[3].set_xticks([0, N//2, N])
 
     plt.subplots_adjust(wspace=0.25, hspace=0.25)
 
     # colorbar
-    cbar_ax = fig.add_axes(
-        [0.95, 0.12, 0.03, 0.74]
-    )  # [<left>, <bottom>, <width>, <height>]
+    cbar_ax = fig.add_axes([0.95, 0.12, 0.03, 0.74]) # [<left>, <bottom>, <width>, <height>]
     cbar = fig.colorbar(img, cax=cbar_ax, shrink=0.8)
     cbar.set_label("Concentration of U", fontsize=12)
-
+    
     frame_path = f"{output_dir}/gray_scott_plots_{plot_number}.png"
-    plt.savefig(frame_path, bbox_inches="tight", dpi=300)
+    plt.savefig(frame_path, bbox_inches='tight', dpi=300)
     plt.show()
